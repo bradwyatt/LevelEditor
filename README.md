@@ -13,7 +13,7 @@ Made with Python 3.7.3 with pygame.
 <img src="https://github.com/bradwyatt/LevelEditor/blob/master/Docs/demo.gif?raw=true" width="500" height="400"></img>
 </p>
 
-## Info Screen
+## How To Play
 ![ScreenShot](/Docs/InfoScreen.PNG)
 
 
