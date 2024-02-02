@@ -1,77 +1,88 @@
 """
-Propeller Game Level Editor Engine created by Brad Wyatt
-
-ISSUES TO SOLVE:
-I may want to separate sprite groups by PLAY and STOP sprites
-Several elifs (with references to many parameters)
-Rotate spikes
+Propeller Platformer: Level Editor created by Brad Wyatt
 """
 import random
 import sys
 import os
 import copy
-import tkinter as tk
-from tkinter.colorchooser import askcolor
-from tkinter.filedialog import asksaveasfilename, askopenfilename
+#import tkinter as tk
+#from tkinter.colorchooser import askcolor
+#from tkinter.filedialog import asksaveasfilename, askopenfilename
 from ast import literal_eval
 import pygame
 from pygame.constants import RLEACCEL
 from pygame.locals import (KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP, K_LEFT,
                            K_RIGHT, QUIT, K_ESCAPE)
+from utils import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, IMAGES, SOUNDS, load_image, load_sound
+
+# Initialize pygame
+pygame.init()
+SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # pygame.FULLSCREEN for fullSCREEN
+GAME_ICON = pygame.image.load("sprites/player_ico.png")
+pygame.display.set_icon(GAME_ICON)
+pygame.display.set_caption('Level Editor')
+clock = pygame.time.Clock()
+
+GRID_SPRITES = pygame.sprite.Group()
+START_SPRITES = pygame.sprite.Group()
+PLAY_SPRITES = pygame.sprite.Group()
+GAME_MODE_SPRITES = pygame.sprite.Group()
+PLACED_SPRITES = pygame.sprite.Group()
 
 ########################
 # GLOBAL CONSTANTS and MUTABLES
 # Starting positions of each of the objects
 ########################
-STARTPOS = {'player': (10, 4), 'wall': (40, 12), 'reverse_wall': (102, 12),
+START_POSITIONS = {'player': (10, 4), 'wall': (40, 12), 'reverse_wall': (102, 12),
             'spring': (255, 12), 'flyer': (130, 12), 'smily_robot': (162, 12),
             'door': (195, 2), 'diamonds': (225, 14), 'sticky_block': (70, 12),
             'fall_spikes': (290, 12), 'stand_spikes': (320, 12)}
-SCREEN_WIDTH, SCREEN_HEIGHT = 936, 650
-START_SPRITES = pygame.sprite.Group()
-IMAGES = {}
-SOUNDS = {}
+
+def create_transparent_surface(width, height):
+    """
+    Creates a transparent surface of the specified size.
+    :param width: Width of the surface.
+    :param height: Height of the surface.
+    :return: A transparent surface.
+    """
+    transparent_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+    transparent_surface.fill((0, 0, 0, 0))  # Fill with complete transparency
+    return transparent_surface
+
+def load_all_assets():
+    #Sprites
+    IMAGES['spr_blank_box'] = create_transparent_surface(24, 24)  # Assuming 24x24 is the size for blank box
+    load_image("sprites/door_closed.png", "spr_door_closed", True)
+    load_image("sprites/door_open.png", "spr_door_open", True)
+    load_image("sprites/diamond.png", "spr_diamonds", True)
+    load_image("sprites/wall.png", "spr_wall", True)
+    load_image("sprites/reverse_wall.png", "spr_reverse_wall", True)
+    load_image("sprites/flyer.png", "spr_flyer", True)
+    load_image("sprites/spring.png", "spr_spring", True)
+    load_image("sprites/smily_robot_1.png", "spr_smily_robot", True)
+    load_image("sprites/smily_robot_2.png", "spr_smily_robot_2", True)
+    load_image("sprites/sticky_block.png", "spr_sticky_block", True)
+    load_image("sprites/fall_spikes.png", "spr_fall_spikes", True)
+    load_image("sprites/stand_spikes.png", "spr_stand_spikes", True)
+    load_image("sprites/player.png", "spr_player", True)
+    load_image("sprites/player_propeller.png", "spr_player_propeller", True)
+    load_image("sprites/play_button.png", "spr_play_button", True)
+    load_image("sprites/stop_button.png", "spr_stop_button", True)
+    load_image("sprites/clear.png", "spr_clear_button", True)
+    load_image("sprites/info_button.png", "spr_info_button", True)
+    load_image("sprites/grid_button.png", "spr_grid_button", True)
+    load_image("sprites/restart.png", "spr_restart_button", True)
+    load_image("sprites/color_button.png", "spr_color_button", True)
+    load_image("sprites/save_file.png", "spr_save_file_button", True)
+    load_image("sprites/load_file.png", "spr_load_file_button", True)
+    load_image("sprites/rotate.png", "spr_rotate_button", True)
+    load_image("sprites/grid.png", "spr_grid", True)
     
-
-def adjust_to_correct_appdir():
-    """
-    Used for adjusting python image loading to correct directory
-    Taken from https://www.pygame.org/wiki/RunningInCorrectDirectory
-    """
-    try:
-        appdir = sys.argv[0] # feel free to use __file__
-        if not appdir:
-            raise ValueError
-        appdir = os.path.abspath(os.path.dirname(sys.argv[0]))
-        os.chdir(appdir)
-        if not appdir in sys.path:
-            sys.path.insert(0, appdir)
-    except:
-        #placeholder for feedback, adjust to your app.
-        #remember to use only python and python standard libraries
-        #not any resource or module into the appdir
-        #a window in Tkinter can be adequate for apps without console
-        #a simple print with a timeout can be enough for console apps
-        print('Please run from an OS console.')
-        import time
-        time.sleep(10)
-        sys.exit(1)
-adjust_to_correct_appdir()
-
-def load_sound(file, name):
-    sound = pygame.mixer.Sound(file)
-    SOUNDS[name] = sound
-
-def load_image(file, name, transparent, alpha):
-    new_image = pygame.image.load(file)
-    if alpha:
-        new_image = new_image.convert_alpha()
-    else:
-        new_image = new_image.convert()
-    if transparent:
-        colorkey = new_image.get_at((0, 0))
-        new_image.set_colorkey(colorkey, RLEACCEL)
-    IMAGES[name] = new_image
+    #SOUNDS
+    load_sound("SOUNDS/propeller.wav", "snd_propeller")
+    SOUNDS["snd_propeller"].set_volume(.15)
+    load_sound("SOUNDS/spring.wav", "snd_spring")
+    SOUNDS["snd_spring"].set_volume(.15)
 
 def snap_to_grid(pos, screen_width, screen_height):
     best_num_x, best_num_y = 0, 48 # Y is 48 so it doesn't go above the menu
@@ -83,114 +94,114 @@ def snap_to_grid(pos, screen_width, screen_height):
             best_num_y = y_coord
     return (best_num_x, best_num_y)
 
-def remove_placed_object(PLACED_SPRITES, mousepos):
+def remove_placed_object(placed_sprites, mousepos):
     for placed_item_list in (PlacedPlayer.player_list, PlacedWall.wall_list, PlacedFlyer.flyer_list,
                              PlacedSpring.spring_list, PlacedDiamonds.diamonds_list, PlacedReverseWall.reverse_wall_list,
                              PlacedSmilyRobot.smily_robot_list, PlacedDoor.door_list, PlacedStickyBlock.sticky_block_list,
                              PlacedFallSpikes.fall_spikes_list, PlacedStandSpikes.stand_spikes_list):
         for placed_item in placed_item_list:
             if placed_item.rect.collidepoint(mousepos):
-                PLACED_SPRITES.remove(placed_item)
+                placed_sprites.remove(placed_item)
                 placed_item_list.remove(placed_item)
-    return PLACED_SPRITES
+    return placed_sprites
 
-def restart_start_objects(START):
-    START.player.rect.topleft = STARTPOS['player']
-    START.wall.rect.topleft = STARTPOS['wall']
-    START.reverse_wall.rect.topleft = STARTPOS['reverse_wall']
-    START.spring.rect.topleft = STARTPOS['spring']
-    START.flyer.rect.topleft = STARTPOS['flyer']
-    START.smily_robot.rect.topleft = STARTPOS['smily_robot']
-    START.door.rect.topleft = STARTPOS['door']
-    START.diamonds.rect.topleft = STARTPOS['diamonds']
-    START.sticky_block.rect.topleft = STARTPOS['sticky_block']
-    START.fall_spikes.rect.topleft = STARTPOS['fall_spikes']
-    START.fall_spikes.rect.topleft = STARTPOS['stand_spikes']
-    return START
+def restart_start_objects(start, start_positions):
+    start.player.rect.topleft = start_positions['player']
+    start.wall.rect.topleft = start_positions['wall']
+    start.reverse_wall.rect.topleft = start_positions['reverse_wall']
+    start.spring.rect.topleft = start_positions['spring']
+    start.flyer.rect.topleft = start_positions['flyer']
+    start.smily_robot.rect.topleft = start_positions['smily_robot']
+    start.door.rect.topleft = start_positions['door']
+    start.diamonds.rect.topleft = start_positions['diamonds']
+    start.sticky_block.rect.topleft = start_positions['sticky_block']
+    start.fall_spikes.rect.topleft = start_positions['fall_spikes']
+    start.fall_spikes.rect.topleft = start_positions['stand_spikes']
+    return start
 
-def get_color():
-    color = askcolor()
-    return [color[0][0], color[0][1], color[0][2]]
+# def get_color():
+#     color = askcolor()
+#     return [color[0][0], color[0][1], color[0][2]]
 
-def load_file(PLACED_SPRITES, colorkey):
-    request_file_name = askopenfilename(defaultextension=".lvl")
-    open_file = open(request_file_name, "r")
-    loaded_file = open_file.read()
-    loaded_dict = literal_eval(loaded_file)
+# def load_file(PLACED_SPRITES, colorkey):
+#     request_file_name = askopenfilename(defaultextension=".lvl")
+#     open_file = open(request_file_name, "r")
+#     loaded_file = open_file.read()
+#     loaded_dict = literal_eval(loaded_file)
             
-    for player in PlayPlayer.player_list:
-        player.destroy()
-    for door in PlayDoor.door_list:
-        door.destroy()
-    for wall in PlayWall.wall_list:
-        wall.destroy()
-    for reverse_wall in PlayReverseWall.reverse_wall_list:
-        reverse_wall.destroy()
-    for flyer in PlayFlyer.flyer_list:
-        flyer.destroy()
-    for smily_robot in PlaySmilyRobot.smily_robot_list:
-        smily_robot.destroy()
-    for spring in PlaySpring.spring_list:
-        spring.destroy()
-    for diamond in PlayDiamonds.diamonds_list:
-        diamond.destroy()
-    for sticky_block in PlayStickyBlock.sticky_block_list:
-        sticky_block.destroy()
-    for fall_spikes in PlayFallSpikes.fall_spikes_list:
-        fall_spikes.destroy()
-    for stand_spikes in PlayStandSpikes.stand_spikes_list:
-        stand_spikes.destroy()
-    open_file.close()
+#     for player in PlayPlayer.player_list:
+#         player.destroy()
+#     for door in PlayDoor.door_list:
+#         door.destroy()
+#     for wall in PlayWall.wall_list:
+#         wall.destroy()
+#     for reverse_wall in PlayReverseWall.reverse_wall_list:
+#         reverse_wall.destroy()
+#     for flyer in PlayFlyer.flyer_list:
+#         flyer.destroy()
+#     for smily_robot in PlaySmilyRobot.smily_robot_list:
+#         smily_robot.destroy()
+#     for spring in PlaySpring.spring_list:
+#         spring.destroy()
+#     for diamond in PlayDiamonds.diamonds_list:
+#         diamond.destroy()
+#     for sticky_block in PlayStickyBlock.sticky_block_list:
+#         sticky_block.destroy()
+#     for fall_spikes in PlayFallSpikes.fall_spikes_list:
+#         fall_spikes.destroy()
+#     for stand_spikes in PlayStandSpikes.stand_spikes_list:
+#         stand_spikes.destroy()
+#     open_file.close()
     
-    # Removes all placed lists
-    remove_all_placed()
+#     # Removes all placed lists
+#     remove_all_placed()
     
-    print("Removed all sprites. Now creating lists for loaded level.")
+#     print("Removed all sprites. Now creating lists for loaded level.")
     
-    for player_pos in loaded_dict['player']:
-        PlacedPlayer(player_pos, PLACED_SPRITES)
-    for door_pos in loaded_dict['door']:
-        PlacedDoor(door_pos, PLACED_SPRITES)
-    for wall_pos in loaded_dict['wall']:
-        PlacedWall(wall_pos, PLACED_SPRITES)
-    for reverse_wall_pos in loaded_dict['reverse_wall']:
-        PlacedReverseWall(reverse_wall_pos, PLACED_SPRITES)
-    for flyer_pos in loaded_dict['flyer']:
-        PlacedFlyer(flyer_pos, PLACED_SPRITES)
-    for smily_robot_pos in loaded_dict['smily_robot']:
-        PlacedSmilyRobot(smily_robot_pos, PLACED_SPRITES)
-    for spring_pos in loaded_dict['spring']:
-        PlacedSpring(spring_pos, PLACED_SPRITES)
-    for diamond_pos in loaded_dict['diamonds']:
-        PlacedDiamonds(diamond_pos, PLACED_SPRITES)
-    for sticky_block_pos in loaded_dict['sticky_block']:
-        PlacedStickyBlock(sticky_block_pos, PLACED_SPRITES)
-    for fall_spikes_pos in loaded_dict['fall_spikes']:
-        PlacedFallSpikes(fall_spikes_pos, PLACED_SPRITES)
-    for stand_spikes_pos in loaded_dict['stand_spikes']:
-        PlacedStandSpikes(stand_spikes_pos, PLACED_SPRITES)
-    colorkey = loaded_dict['RGB']
+#     for player_pos in loaded_dict['player']:
+#         PlacedPlayer(player_pos, PLACED_SPRITES)
+#     for door_pos in loaded_dict['door']:
+#         PlacedDoor(door_pos, PLACED_SPRITES)
+#     for wall_pos in loaded_dict['wall']:
+#         PlacedWall(wall_pos, PLACED_SPRITES)
+#     for reverse_wall_pos in loaded_dict['reverse_wall']:
+#         PlacedReverseWall(reverse_wall_pos, PLACED_SPRITES)
+#     for flyer_pos in loaded_dict['flyer']:
+#         PlacedFlyer(flyer_pos, PLACED_SPRITES)
+#     for smily_robot_pos in loaded_dict['smily_robot']:
+#         PlacedSmilyRobot(smily_robot_pos, PLACED_SPRITES)
+#     for spring_pos in loaded_dict['spring']:
+#         PlacedSpring(spring_pos, PLACED_SPRITES)
+#     for diamond_pos in loaded_dict['diamonds']:
+#         PlacedDiamonds(diamond_pos, PLACED_SPRITES)
+#     for sticky_block_pos in loaded_dict['sticky_block']:
+#         PlacedStickyBlock(sticky_block_pos, PLACED_SPRITES)
+#     for fall_spikes_pos in loaded_dict['fall_spikes']:
+#         PlacedFallSpikes(fall_spikes_pos, PLACED_SPRITES)
+#     for stand_spikes_pos in loaded_dict['stand_spikes']:
+#         PlacedStandSpikes(stand_spikes_pos, PLACED_SPRITES)
+#     colorkey = loaded_dict['RGB']
     
-    print("File Loaded")
-    return PLACED_SPRITES, colorkey
+#     print("File Loaded")
+#     return PLACED_SPRITES, colorkey
 
-def save_file(colorkey):
-    try:
-        if PlacedPlayer.player_list and PlacedDoor.door_list:
-            # default extension is optional, here will add .txt if missing
-            save_file_prompt = asksaveasfilename(defaultextension=".lvl")
-            save_file_name = open(save_file_prompt, "w")
-            if save_file_name is not None:
-                # Write the file to disk
-                obj_locations = copy.deepcopy(get_dict_rect_positions())
-                obj_locations['RGB'] = colorkey
-                save_file_name.write(str(obj_locations))
-                save_file_name.close()
-                print("File Saved Successfully.")
-        else:
-            print("Error! Need player and door to save!")
-    except IOError:
-        print("Save File Error, please restart game and try again.")
+# def save_file(colorkey):
+#     try:
+#         if PlacedPlayer.player_list and PlacedDoor.door_list:
+#             # default extension is optional, here will add .txt if missing
+#             save_file_prompt = asksaveasfilename(defaultextension=".lvl")
+#             save_file_name = open(save_file_prompt, "w")
+#             if save_file_name is not None:
+#                 # Write the file to disk
+#                 obj_locations = copy.deepcopy(get_dict_rect_positions())
+#                 obj_locations['RGB'] = colorkey
+#                 save_file_name.write(str(obj_locations))
+#                 save_file_name.close()
+#                 print("File Saved Successfully.")
+#         else:
+#             print("Error! Need player and door to save!")
+#     except IOError:
+#         print("Save File Error, please restart game and try again.")
 
 class InfoScreen():
     def __init__(self, INFO_SCREEN, screen):
@@ -216,199 +227,199 @@ class InfoScreen():
                         break
 
 class ClearButton(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_CLEAR_BUTTON"]
+        self.image = images["spr_clear_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         
 
 class InfoButton(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_INFO_BUTTON"]
+        self.image = images["spr_info_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         
 
 class RestartButton(pygame.sprite.Sprite):
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, play_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_RESTART_BUTTON"]
+        self.image = images["spr_restart_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLAY_SPRITES.add(self)
+        play_sprites.add(self)
 
 class GridButton(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_GRID_BUTTON"]
+        self.image = images["spr_grid_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         
         self.grid_on_var = 1
 
 class ColorButton(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_COLOR_BUTTON"]
+        self.image = images["spr_color_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         
 
 class SaveFileButton(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_SAVE_FILE_BUTTON"]
+        self.image = images["spr_save_file_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         
 
 class LoadFileButton(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_LOAD_FILE_BUTTON"]
+        self.image = images["spr_load_file_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         
 
 class RotateButton(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_ROTATE_BUTTON"]
+        self.image = images["spr_rotate_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         
 
 class StartBlankBox(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_BLANKBOX"]
+        self.image = images["spr_blank_box"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
-    def flip_start_sprite(self, DRAGGING, pos):
+    def flip_start_sprite(self, dragging, pos, images):
         self.rect.topleft = pos
-        if DRAGGING.player:
-            self.image = IMAGES["SPR_PLAYER"]
-        elif DRAGGING.wall:
-            self.image = IMAGES["SPR_WALL"]
-        elif DRAGGING.diamonds:
-            self.image = IMAGES["SPR_DIAMONDS"]
-        elif DRAGGING.door:
-            self.image = pygame.transform.smoothscale(IMAGES["SPR_DOOR_CLOSED"], (24, 40))
-        elif DRAGGING.flyer:
-            self.image = IMAGES["SPR_FLYER"]
-        elif DRAGGING.reverse_wall:
-            self.image = IMAGES["SPR_REVERSE_WALL"]
-        elif DRAGGING.smily_robot:
-            self.image = IMAGES["SPR_SMILYROBOT"]
-        elif DRAGGING.spring:
-            self.image = IMAGES["SPR_SPRING"]
-        elif DRAGGING.sticky_block:
-            self.image = IMAGES["SPR_STICKYBLOCK"]
-        elif DRAGGING.fall_spikes:
-            self.image = IMAGES["SPR_FALLSPIKES"]
-        elif DRAGGING.stand_spikes:
-            self.image = IMAGES["SPR_STANDSPIKES"]
+        if dragging.player:
+            self.image = images["spr_player"]
+        elif dragging.wall:
+            self.image = images["spr_wall"]
+        elif dragging.diamonds:
+            self.image = images["spr_diamonds"]
+        elif dragging.door:
+            self.image = pygame.transform.smoothscale(images["spr_door_closed"], (24, 40))
+        elif dragging.flyer:
+            self.image = images["spr_flyer"]
+        elif dragging.reverse_wall:
+            self.image = images["spr_reverse_wall"]
+        elif dragging.smily_robot:
+            self.image = images["spr_smily_robot"]
+        elif dragging.spring:
+            self.image = images["spr_spring"]
+        elif dragging.sticky_block:
+            self.image = images["spr_sticky_block"]
+        elif dragging.fall_spikes:
+            self.image = images["spr_fall_spikes"]
+        elif dragging.stand_spikes:
+            self.image = images["spr_stand_spikes"]
         else:
-            self.image = IMAGES["SPR_BLANKBOX"]
+            self.image = images["spr_blank_box"]
 
 class StartWall(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_WALL"]
+        self.image = images["spr_wall"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartReverseWall(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_REVERSE_WALL"]
+        self.image = images["spr_reverse_wall"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartDiamonds(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_DIAMONDS"]
+        self.image = images["spr_diamonds"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartDoor(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.transform.smoothscale(IMAGES["SPR_DOOR_CLOSED"], (24, 40))
+        self.image = pygame.transform.smoothscale(images["spr_door_closed"], (24, 40))
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartFlyer(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_FLYER"]
+        self.image = images["spr_flyer"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartSmilyRobot(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_SMILYROBOT"]
+        self.image = images["spr_smily_robot"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartSpring(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_SPRING"]
+        self.image = images["spr_spring"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartPlayer(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_PLAYER"]
+        self.image = images["spr_player"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartStickyBlock(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_STICKYBLOCK"]
+        self.image = images["spr_sticky_block"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartFallSpikes(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_FALLSPIKES"]
+        self.image = images["spr_fall_spikes"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
 
 class StartStandSpikes(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_STANDSPIKES"]
+        self.image = images["spr_stand_spikes"]
         self.rect = self.image.get_rect()
         
         self.rotate = 0
@@ -417,12 +428,12 @@ class StartStandSpikes(pygame.sprite.Sprite):
 
 class PlacedWall(pygame.sprite.Sprite):
     wall_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_WALL"]
+        self.image = images["spr_wall"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedWall.wall_list.append(self)
     def update(self):
         pass
@@ -433,12 +444,12 @@ class PlacedWall(pygame.sprite.Sprite):
 
 class PlacedReverseWall(pygame.sprite.Sprite):
     reverse_wall_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_REVERSE_WALL"]
+        self.image = images["spr_reverse_wall"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedReverseWall.reverse_wall_list.append(self)
     def update(self):
         pass
@@ -448,12 +459,12 @@ class PlacedReverseWall(pygame.sprite.Sprite):
 
 class PlacedDiamonds(pygame.sprite.Sprite):
     diamonds_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_DIAMONDS"]
+        self.image = images["spr_diamonds"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedDiamonds.diamonds_list.append(self)
     def update(self):
         pass
@@ -463,12 +474,12 @@ class PlacedDiamonds(pygame.sprite.Sprite):
 
 class PlacedDoor(pygame.sprite.Sprite):
     door_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_DOOR_CLOSED"]
+        self.image = images["spr_door_closed"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedDoor.door_list.append(self)
     def update(self):
         pass
@@ -478,12 +489,12 @@ class PlacedDoor(pygame.sprite.Sprite):
 
 class PlacedFlyer(pygame.sprite.Sprite):
     flyer_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_FLYER"]
+        self.image = images["spr_flyer"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedFlyer.flyer_list.append(self)
     def update(self):
         pass
@@ -493,12 +504,12 @@ class PlacedFlyer(pygame.sprite.Sprite):
 
 class PlacedSmilyRobot(pygame.sprite.Sprite):
     smily_robot_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_SMILYROBOT"]
+        self.image = images["spr_smily_robot"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedSmilyRobot.smily_robot_list.append(self)
     def update(self):
         pass
@@ -508,12 +519,12 @@ class PlacedSmilyRobot(pygame.sprite.Sprite):
 
 class PlacedSpring(pygame.sprite.Sprite):
     spring_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_SPRING"]
+        self.image = images["spr_spring"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedSpring.spring_list.append(self)
     def update(self):
         pass
@@ -523,12 +534,12 @@ class PlacedSpring(pygame.sprite.Sprite):
 
 class PlacedStickyBlock(pygame.sprite.Sprite):
     sticky_block_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_STICKYBLOCK"]
+        self.image = images["spr_sticky_block"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedStickyBlock.sticky_block_list.append(self)
     def update(self):
         pass
@@ -538,12 +549,12 @@ class PlacedStickyBlock(pygame.sprite.Sprite):
 
 class PlacedFallSpikes(pygame.sprite.Sprite):
     fall_spikes_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_FALLSPIKES"]
+        self.image = images["spr_fall_spikes"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedFallSpikes.fall_spikes_list.append(self)
     def update(self):
         pass
@@ -553,12 +564,12 @@ class PlacedFallSpikes(pygame.sprite.Sprite):
 
 class PlacedStandSpikes(pygame.sprite.Sprite):
     stand_spikes_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_STANDSPIKES"]
+        self.image = images["spr_stand_spikes"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedStandSpikes.stand_spikes_list.append(self)
     def update(self):
         pass
@@ -568,12 +579,12 @@ class PlacedStandSpikes(pygame.sprite.Sprite):
     
 class PlacedPlayer(pygame.sprite.Sprite):
     player_list = []
-    def __init__(self, pos, PLACED_SPRITES):
+    def __init__(self, pos, placed_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_PLAYER"]
+        self.image = images["spr_player"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
-        PLACED_SPRITES.add(self)
+        placed_sprites.add(self)
         PlacedPlayer.player_list.append(self)
     def update(self):
         pass
@@ -585,9 +596,9 @@ class PlacedPlayer(pygame.sprite.Sprite):
 
 class PlayWall(pygame.sprite.Sprite):
     wall_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_WALL"]
+        self.image = images["spr_wall"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -603,9 +614,12 @@ class PlayWall(pygame.sprite.Sprite):
             
 class PlayReverseWall(pygame.sprite.Sprite):
     reverse_wall_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_BLANKBOX"]
+        # Create a transparent surface initially instead of loading "spr_blank_box"
+        self.image = pygame.Surface((24, 24))  # Assuming 24x24 is the size for blank box
+        self.image.fill((0, 0, 0, 0))  # Fill with black color and full transparency
+        self.image.set_colorkey((0, 0, 0))  # Set black as transparent color
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -621,9 +635,9 @@ class PlayReverseWall(pygame.sprite.Sprite):
 
 class PlayFlyer(pygame.sprite.Sprite):
     flyer_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_FLYER"]
+        self.image = images["spr_flyer"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -643,9 +657,9 @@ class PlayFlyer(pygame.sprite.Sprite):
         self.sprite_direction()
     def sprite_direction(self):
         if self.right_or_left == 2:
-            self.image = IMAGES["SPR_FLYER"]
+            self.image = IMAGES["spr_flyer"]
         elif self.right_or_left == -2:
-            self.image = pygame.transform.flip(IMAGES["SPR_FLYER"], 1, 0)
+            self.image = pygame.transform.flip(IMAGES["spr_flyer"], 1, 0)
     def destroy(self):
         PlayFlyer.flyer_list.remove(self)
         self.kill()
@@ -655,9 +669,9 @@ class PlayFlyer(pygame.sprite.Sprite):
 
 class PlayDiamonds(pygame.sprite.Sprite):
     diamonds_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_DIAMONDS"]
+        self.image = images["spr_diamonds"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -670,13 +684,13 @@ class PlayDiamonds(pygame.sprite.Sprite):
         self.kill()
     def restart(self):
         self.rect.topleft = self.pos
-        self.image = IMAGES["SPR_DIAMONDS"]
+        self.image = IMAGES["spr_diamonds"]
 
 class PlayDoor(pygame.sprite.Sprite):
     door_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_DOOR_CLOSED"]
+        self.image = images["spr_door_closed"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -686,8 +700,8 @@ class PlayDoor(pygame.sprite.Sprite):
         pass
     def open_or_close(self, score, diamonds_list):
         if score == len(diamonds_list):
-            return IMAGES["SPR_DOOR_OPEN"]
-        return IMAGES["SPR_DOOR_CLOSED"]
+            return IMAGES["spr_door_open"]
+        return IMAGES["spr_door_closed"]
     def destroy(self):
         PlayDoor.door_list.remove(self)
         self.kill()
@@ -696,9 +710,9 @@ class PlayDoor(pygame.sprite.Sprite):
 
 class PlaySmilyRobot(pygame.sprite.Sprite):
     smily_robot_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_SMILYROBOT"]
+        self.image = images["spr_smily_robot"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -797,9 +811,9 @@ class PlaySmilyRobot(pygame.sprite.Sprite):
         # Two different pictures to animate that makes it look like it's moving
         self.animatetimer += 1
         if self.animatetimer > 5:
-            self.image = IMAGES["SPR_SMILYROBOT2"]
+            self.image = IMAGES["spr_smily_robot_2"]
         if self.animatetimer > 10:
-            self.image = IMAGES["SPR_SMILYROBOT"]
+            self.image = IMAGES["spr_smily_robot"]
             self.animatetimer = 0
     def calc_grav(self):
         if self.speed_y == 0:
@@ -810,9 +824,9 @@ class PlaySmilyRobot(pygame.sprite.Sprite):
         
 class PlayStickyBlock(pygame.sprite.Sprite):
     sticky_block_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_STICKYBLOCK"]
+        self.image = images["spr_sticky_block"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -828,9 +842,9 @@ class PlayStickyBlock(pygame.sprite.Sprite):
 
 class PlayFallSpikes(pygame.sprite.Sprite):
     fall_spikes_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_FALLSPIKES"]
+        self.image = images["spr_fall_spikes"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -848,9 +862,9 @@ class PlayFallSpikes(pygame.sprite.Sprite):
 
 class PlayStandSpikes(pygame.sprite.Sprite):
     stand_spikes_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_STANDSPIKES"]
+        self.image = images["spr_stand_spikes"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -867,9 +881,9 @@ class PlayStandSpikes(pygame.sprite.Sprite):
 
 class PlaySpring(pygame.sprite.Sprite):
     spring_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_SPRING"]
+        self.image = images["spr_spring"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -885,9 +899,9 @@ class PlaySpring(pygame.sprite.Sprite):
 
 class PlayPlayer(pygame.sprite.Sprite):
     player_list = []
-    def __init__(self, pos, PLAY_SPRITES):
+    def __init__(self, pos, PLAY_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_PLAYER"]
+        self.image = images["spr_player"]
         self.rect = self.image.get_rect()
         self.pos = pos
         self.rect.topleft = self.pos
@@ -962,12 +976,12 @@ class PlayPlayer(pygame.sprite.Sprite):
         elif self.propeller == 1:
             self.speed_y += .01
             if self.speed_y >= -2:
-                SOUNDS["SND_PROPELLER"].play()
+                SOUNDS["snd_propeller"].play()
             if self.speed_y > -1.5:
                 self.propeller = 0
                 self.speed_y += .25
         else:
-            SOUNDS["SND_PROPELLER"].stop()
+            SOUNDS["snd_propeller"].stop()
             self.speed_y += .25
     def jump(self):
         # For moving platforms that go up and down...
@@ -991,21 +1005,21 @@ class PlayPlayer(pygame.sprite.Sprite):
             self.playerproptimer += 1
             if self.last_pressed_r == 1:
                 if self.playerproptimer > 1:
-                    self.image = IMAGES["SPR_PLAYER_PROP"]
+                    self.image = IMAGES["spr_player_propeller"]
                 if self.playerproptimer > 3:
-                    self.image = IMAGES["SPR_PLAYER"]
+                    self.image = IMAGES["spr_player"]
                     self.playerproptimer = 0
             if self.last_pressed_r == 0:
                 if self.playerproptimer > 1:
-                    self.image = pygame.transform.flip(IMAGES["SPR_PLAYER_PROP"], 1, 0)
+                    self.image = pygame.transform.flip(IMAGES["spr_player_propeller"], 1, 0)
                 if self.playerproptimer > 3:
-                    self.image = pygame.transform.flip(IMAGES["SPR_PLAYER"], 1, 0)
+                    self.image = pygame.transform.flip(IMAGES["spr_player"], 1, 0)
                     self.playerproptimer = 0
         else:
             if self.last_pressed_r == 1:
-                self.image = IMAGES["SPR_PLAYER"]
+                self.image = IMAGES["spr_player"]
             else:
-                self.image = pygame.transform.flip(IMAGES["SPR_PLAYER"], 1, 0)
+                self.image = pygame.transform.flip(IMAGES["spr_player"], 1, 0)
     def restart(self):
         # Game Reset
         self.jumps_left = 1
@@ -1017,33 +1031,33 @@ class PlayPlayer(pygame.sprite.Sprite):
         self.rect.topleft = self.pos
 
 class PlayEditSwitchButton(pygame.sprite.Sprite):
-    def __init__(self, pos, GAME_MODE_SPRITES):
+    def __init__(self, pos, GAME_MODE_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_PLAY_BUTTON"]
+        self.image = images["spr_play_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         GAME_MODE_SPRITES.add(self)
     def game_mode_button(self, game_mode):
         if game_mode == 0:
-            self.image = IMAGES["SPR_PLAY_BUTTON"]
+            self.image = IMAGES["spr_play_button"]
         elif game_mode == 1:
-            self.image = IMAGES["SPR_STOP_BUTTON"]
+            self.image = IMAGES["spr_stop_button"]
         return self.image
 
 class MusicPlayer():
     def __init__(self, game_mode):
         if game_mode == 1:
-            pygame.mixer.music.load("SOUNDS/playmusic.mp3")
+            pygame.mixer.music.load("SOUNDS/play_music.mp3")
             pygame.mixer.music.play(-1)
         else:
-            pygame.mixer.music.load("SOUNDS/editingmode.wav")
+            pygame.mixer.music.load("SOUNDS/editing_mode.wav")
             pygame.mixer.music.play(-1)
 
 class Grid(pygame.sprite.Sprite):
     grid_list = []
-    def __init__(self, GRID_SPRITES):
+    def __init__(self, GRID_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = IMAGES["SPR_GRID"]
+        self.image = images["spr_grid"]
         self.rect = self.image.get_rect()
         GRID_SPRITES.add(self)
         if self.rect.bottom > SCREEN_HEIGHT:
@@ -1082,29 +1096,29 @@ class Dragging():
 
 class Start():
     def __init__(self):
-        self.blank_box = StartBlankBox()
+        self.blank_box = StartBlankBox(IMAGES)
         START_SPRITES.add(self.blank_box)
-        self.player = StartPlayer()
+        self.player = StartPlayer(IMAGES)
         START_SPRITES.add(self.player)
-        self.wall = StartWall()
+        self.wall = StartWall(IMAGES)
         START_SPRITES.add(self.wall)
-        self.flyer = StartFlyer()
+        self.flyer = StartFlyer(IMAGES)
         START_SPRITES.add(self.flyer)
-        self.reverse_wall = StartReverseWall()
+        self.reverse_wall = StartReverseWall(IMAGES)
         START_SPRITES.add(self.reverse_wall)
-        self.spring = StartSpring()
+        self.spring = StartSpring(IMAGES)
         START_SPRITES.add(self.spring)
-        self.smily_robot = StartSmilyRobot()
+        self.smily_robot = StartSmilyRobot(IMAGES)
         START_SPRITES.add(self.smily_robot)
-        self.door = StartDoor()
+        self.door = StartDoor(IMAGES)
         START_SPRITES.add(self.door)
-        self.diamonds = StartDiamonds()
+        self.diamonds = StartDiamonds(IMAGES)
         START_SPRITES.add(self.diamonds)
-        self.sticky_block = StartStickyBlock()
+        self.sticky_block = StartStickyBlock(IMAGES)
         START_SPRITES.add(self.sticky_block)
-        self.fall_spikes = StartFallSpikes()
+        self.fall_spikes = StartFallSpikes(IMAGES)
         START_SPRITES.add(self.fall_spikes)
-        self.stand_spikes = StartStandSpikes()
+        self.stand_spikes = StartStandSpikes(IMAGES)
         START_SPRITES.add(self.stand_spikes)
 
         
@@ -1173,11 +1187,11 @@ def restart_level():
 def main():
     #global PLACED_SPRITES
     # Tk box for color
-    ROOT = tk.Tk()
-    ROOT.withdraw()
-    
+#    ROOT = tk.Tk()
+#    ROOT.withdraw()
+
     MENUON = 1
-    SCREEN = None
+    load_all_assets()
 
     COLORKEY = [160, 160, 160]
     
@@ -1185,82 +1199,39 @@ def main():
     state = RUNNING
     debug_message = 0
     
-    GRID_SPRITES = pygame.sprite.Group()
-    #START_SPRITES = pygame.sprite.Group()
-    PLAY_SPRITES = pygame.sprite.Group()
-    GAME_MODE_SPRITES = pygame.sprite.Group()
-    PLACED_SPRITES = pygame.sprite.Group()
-    CLOCK = pygame.time.Clock()
-    
-    pygame.init()
-    SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # pygame.FULLSCREEN for fullSCREEN
     #Fonts
     FONT_ARIAL = pygame.font.SysFont('Arial', 24)
-    #Sprites
-    load_image("sprites/blankbox.png", "SPR_BLANKBOX", True, False)
-    load_image("sprites/doorclosed.png", "SPR_DOOR_CLOSED", True, True)
-    load_image("sprites/dooropen.png", "SPR_DOOR_OPEN", True, True)
-    load_image("sprites/diamond.png", "SPR_DIAMONDS", True, True)
-    load_image("sprites/Wall.png", "SPR_WALL", True, True)
-    load_image("sprites/reversewall.png", "SPR_REVERSE_WALL", True, True)
-    load_image("sprites/flyer.png", "SPR_FLYER", True, True)
-    load_image("sprites/spring.png", "SPR_SPRING", True, True)
-    load_image("sprites/smilyrobot1.png", "SPR_SMILYROBOT", True, True)
-    load_image("sprites/smilyrobot2.png", "SPR_SMILYROBOT2", True, True)
-    load_image("sprites/stickyblock.png", "SPR_STICKYBLOCK", True, True)
-    load_image("sprites/fallspikes.png", "SPR_FALLSPIKES", True, True)
-    load_image("sprites/standspikes.png", "SPR_STANDSPIKES", True, True)
-    load_image("sprites/player.png", "SPR_PLAYER", True, True)
-    load_image("sprites/playerprop.png", "SPR_PLAYER_PROP", True, True)
-    load_image("sprites/play_button.png", "SPR_PLAY_BUTTON", True, True)
-    load_image("sprites/stopbutton.png", "SPR_STOP_BUTTON", True, True)
-    load_image("sprites/clear.png", "SPR_CLEAR_BUTTON", True, True)
-    load_image("sprites/infobutton.png", "SPR_INFO_BUTTON", True, True)
-    load_image("sprites/gridbutton.png", "SPR_GRID_BUTTON", True, True)
-    load_image("sprites/restart.png", "SPR_RESTART_BUTTON", True, True)
-    load_image("sprites/colorbutton.png", "SPR_COLOR_BUTTON", True, True)
-    load_image("sprites/savefile.png", "SPR_SAVE_FILE_BUTTON", True, True)
-    load_image("sprites/loadfile.png", "SPR_LOAD_FILE_BUTTON", True, True)
-    load_image("sprites/rotate.png", "SPR_ROTATE_BUTTON", True, True)
-    load_image("sprites/grid.png", "SPR_GRID", True, True)
+
     
     #Backgrounds
-    START_MENU = pygame.image.load("sprites/startmenu.png").convert()
+    START_MENU = pygame.image.load("sprites/start_menu.png").convert()
     START_MENU = pygame.transform.scale(START_MENU, (SCREEN_WIDTH, SCREEN_HEIGHT))
-    INFO_SCREEN = pygame.image.load("sprites/infoSCREEN.bmp").convert()
+    INFO_SCREEN = pygame.image.load("sprites/info_screen.bmp").convert()
     INFO_SCREEN = pygame.transform.scale(INFO_SCREEN, (SCREEN_WIDTH, SCREEN_HEIGHT))
-    
+
     #Start (Menu) Objects
     START = Start()
     #Dragging Variables
     DRAGGING = Dragging()
     
-    PLAY_EDIT_SWITCH_BUTTON = PlayEditSwitchButton((SCREEN_WIDTH-50, 8), GAME_MODE_SPRITES)
-    CLEAR_BUTTON = ClearButton((SCREEN_WIDTH-115, 10))
+    PLAY_EDIT_SWITCH_BUTTON = PlayEditSwitchButton((SCREEN_WIDTH-50, 8), GAME_MODE_SPRITES, IMAGES)
+    CLEAR_BUTTON = ClearButton((SCREEN_WIDTH-115, 10), IMAGES)
     START_SPRITES.add(CLEAR_BUTTON)
-    INFO_BUTTON = InfoButton((SCREEN_WIDTH-320, 10))
+    INFO_BUTTON = InfoButton((SCREEN_WIDTH-320, 10), IMAGES)
     START_SPRITES.add(INFO_BUTTON)
-    GRID_BUTTON = GridButton((SCREEN_WIDTH-150, 10))
+    GRID_BUTTON = GridButton((SCREEN_WIDTH-150, 10), IMAGES)
     START_SPRITES.add(GRID_BUTTON)
-    RESTART_BUTTON = RestartButton((SCREEN_WIDTH-175, 10), PLAY_SPRITES)
-    COLOR_BUTTON = ColorButton((SCREEN_WIDTH-195, 10))
+    RESTART_BUTTON = RestartButton((SCREEN_WIDTH-175, 10), PLAY_SPRITES, IMAGES)
+    COLOR_BUTTON = ColorButton((SCREEN_WIDTH-195, 10), IMAGES)
     START_SPRITES.add(COLOR_BUTTON)
-    SAVE_FILE_BUTTON = SaveFileButton((SCREEN_WIDTH-230, 10))
+    SAVE_FILE_BUTTON = SaveFileButton((SCREEN_WIDTH-230, 10), IMAGES)
     START_SPRITES.add(SAVE_FILE_BUTTON)
-    LOAD_FILE_BUTTON = LoadFileButton((SCREEN_WIDTH-265, 10))
+    LOAD_FILE_BUTTON = LoadFileButton((SCREEN_WIDTH-265, 10), IMAGES)
     START_SPRITES.add(LOAD_FILE_BUTTON)
-    ROTATE_BUTTON = RotateButton((SCREEN_WIDTH-590, 7))
+    ROTATE_BUTTON = RotateButton((SCREEN_WIDTH-590, 7), IMAGES)
     START_SPRITES.add(ROTATE_BUTTON)
     
-    #window
-    GAME_ICON = pygame.image.load("sprites/playerico.png")
-    pygame.display.set_icon(GAME_ICON)
-    pygame.display.set_caption('Level Editor')
-    #SOUNDS
-    load_sound("SOUNDS/propeller.wav", "SND_PROPELLER")
-    SOUNDS["SND_PROPELLER"].set_volume(.15)
-    load_sound("SOUNDS/spring.wav", "SND_SPRING")
-    SOUNDS["SND_SPRING"].set_volume(.15)
+
     #MUSIC_PLAYER = [MusicPlayer()]
     
     EDIT_MODE, PLAY_MODE = 0, 1
@@ -1269,25 +1240,25 @@ def main():
     # Creating grid on main area
     for i in range(0, SCREEN_WIDTH, 24):
         for j in range(48, SCREEN_HEIGHT, 24):
-            grid = Grid(GRID_SPRITES)
+            grid = Grid(GRID_SPRITES, IMAGES)
             grid.rect.topleft = i, j
     
     while True:
-        CLOCK.tick(60)
+        clock.tick(60)
         MOUSEPOS = pygame.mouse.get_pos()
         
         if state == RUNNING and MENUON == 1: # Initiate room
-            START.player.rect.topleft = STARTPOS['player']
-            START.wall.rect.topleft = STARTPOS['wall']
-            START.flyer.rect.topleft = STARTPOS['flyer']
-            START.reverse_wall.rect.topleft = STARTPOS['reverse_wall']
-            START.spring.rect.topleft = STARTPOS['spring']
-            START.smily_robot.rect.topleft = STARTPOS['smily_robot']
-            START.door.rect.topleft = STARTPOS['door']
-            START.diamonds.rect.topleft = STARTPOS['diamonds']
-            START.sticky_block.rect.topleft = STARTPOS['sticky_block']
-            START.fall_spikes.rect.topleft = STARTPOS['fall_spikes']
-            START.stand_spikes.rect.topleft = STARTPOS['stand_spikes']
+            START.player.rect.topleft = START_POSITIONS['player']
+            START.wall.rect.topleft = START_POSITIONS['wall']
+            START.flyer.rect.topleft = START_POSITIONS['flyer']
+            START.reverse_wall.rect.topleft = START_POSITIONS['reverse_wall']
+            START.spring.rect.topleft = START_POSITIONS['spring']
+            START.smily_robot.rect.topleft = START_POSITIONS['smily_robot']
+            START.door.rect.topleft = START_POSITIONS['door']
+            START.diamonds.rect.topleft = START_POSITIONS['diamonds']
+            START.sticky_block.rect.topleft = START_POSITIONS['sticky_block']
+            START.fall_spikes.rect.topleft = START_POSITIONS['fall_spikes']
+            START.stand_spikes.rect.topleft = START_POSITIONS['stand_spikes']
 
 
                     
@@ -1312,12 +1283,13 @@ def main():
                                 GRID_BUTTON.grid_on_var = 0
                             else:
                                 GRID_BUTTON.grid_on_var = 1
-                        if COLOR_BUTTON.rect.collidepoint(MOUSEPOS):
-                            COLORKEY = get_color()
-                        if SAVE_FILE_BUTTON.rect.collidepoint(MOUSEPOS):
-                            save_file(COLORKEY)
-                        if LOAD_FILE_BUTTON.rect.collidepoint(MOUSEPOS):
-                            PLACED_SPRITES, COLORKEY = load_file(PLACED_SPRITES, COLORKEY)
+                        # if COLOR_BUTTON.rect.collidepoint(MOUSEPOS):
+                        #     COLORKEY = get_color()
+                        # if SAVE_FILE_BUTTON.rect.collidepoint(MOUSEPOS):
+                        #     save_file(COLORKEY)
+                        # if LOAD_FILE_BUTTON.rect.collidepoint(MOUSEPOS):
+                        #     PLACED_SPRITES, COLORKEY = load_file(PLACED_SPRITES, COLORKEY)
+                        
                         # DRAG
                         # Restarts all drag objects
                         
@@ -1325,64 +1297,64 @@ def main():
                             # Checks for if there is already a player placed on level
                             if not PlacedPlayer.player_list:
                                 DRAGGING.dragging_all_false()
-                                START = restart_start_objects(START)
+                                START = restart_start_objects(START, START_POSITIONS)
                                 DRAGGING.player = True
-                                START.blank_box.flip_start_sprite(DRAGGING, START.player.rect.topleft)
+                                START.blank_box.flip_start_sprite(DRAGGING, START.player.rect.topleft, IMAGES)
                             else:
                                 print("Error: Too many players")
                         elif START.door.rect.collidepoint(MOUSEPOS):
                             if not PlacedDoor.door_list:
                                 DRAGGING.dragging_all_false()
-                                START = restart_start_objects(START)
+                                START = restart_start_objects(START, START_POSITIONS)
                                 DRAGGING.door = True
-                                START.blank_box.flip_start_sprite(DRAGGING, START.door.rect.topleft)
+                                START.blank_box.flip_start_sprite(DRAGGING, START.door.rect.topleft, IMAGES)
                             else:
                                 print("Error: Only one exit allowed")
                         elif START.wall.rect.collidepoint(MOUSEPOS):
                             DRAGGING.dragging_all_false()
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             DRAGGING.wall = True
-                            START.blank_box.flip_start_sprite(DRAGGING, START.wall.rect.topleft)
+                            START.blank_box.flip_start_sprite(DRAGGING, START.wall.rect.topleft, IMAGES)
                         elif START.flyer.rect.collidepoint(MOUSEPOS):
                             DRAGGING.dragging_all_false()
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             DRAGGING.flyer = True
-                            START.blank_box.flip_start_sprite(DRAGGING, START.flyer.rect.topleft)
+                            START.blank_box.flip_start_sprite(DRAGGING, START.flyer.rect.topleft, IMAGES)
                         elif START.reverse_wall.rect.collidepoint(MOUSEPOS):
                             DRAGGING.dragging_all_false()
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             DRAGGING.reverse_wall = True
-                            START.blank_box.flip_start_sprite(DRAGGING, START.reverse_wall.rect.topleft)
+                            START.blank_box.flip_start_sprite(DRAGGING, START.reverse_wall.rect.topleft, IMAGES)
                         elif START.spring.rect.collidepoint(MOUSEPOS):
                             DRAGGING.dragging_all_false()
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             DRAGGING.spring = True
-                            START.blank_box.flip_start_sprite(DRAGGING, START.spring.rect.topleft)
+                            START.blank_box.flip_start_sprite(DRAGGING, START.spring.rect.topleft, IMAGES)
                         elif START.smily_robot.rect.collidepoint(MOUSEPOS):
                             DRAGGING.dragging_all_false()
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             DRAGGING.smily_robot = True
-                            START.blank_box.flip_start_sprite(DRAGGING, START.smily_robot.rect.topleft)
+                            START.blank_box.flip_start_sprite(DRAGGING, START.smily_robot.rect.topleft, IMAGES)
                         elif START.diamonds.rect.collidepoint(MOUSEPOS):
                             DRAGGING.dragging_all_false()
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             DRAGGING.diamonds = True
-                            START.blank_box.flip_start_sprite(DRAGGING, START.diamonds.rect.topleft)
+                            START.blank_box.flip_start_sprite(DRAGGING, START.diamonds.rect.topleft, IMAGES)
                         elif START.sticky_block.rect.collidepoint(MOUSEPOS):
                             DRAGGING.dragging_all_false()
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             DRAGGING.sticky_block = True
-                            START.blank_box.flip_start_sprite(DRAGGING, START.sticky_block.rect.topleft)
+                            START.blank_box.flip_start_sprite(DRAGGING, START.sticky_block.rect.topleft, IMAGES)
                         elif START.fall_spikes.rect.collidepoint(MOUSEPOS):
                             DRAGGING.dragging_all_false()
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             DRAGGING.fall_spikes = True
-                            START.blank_box.flip_start_sprite(DRAGGING, START.fall_spikes.rect.topleft)
+                            START.blank_box.flip_start_sprite(DRAGGING, START.fall_spikes.rect.topleft, IMAGES)
                         elif START.stand_spikes.rect.collidepoint(MOUSEPOS):
                             DRAGGING.dragging_all_false()
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             DRAGGING.stand_spikes = True
-                            START.blank_box.flip_start_sprite(DRAGGING, START.stand_spikes.rect.topleft)
+                            START.blank_box.flip_start_sprite(DRAGGING, START.stand_spikes.rect.topleft, IMAGES)
                             
                 #################
                 # LEFT CLICK (PRESSED DOWN)
@@ -1390,27 +1362,27 @@ def main():
                 elif event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
                     # Place object on location of mouse release
                     if DRAGGING.player:
-                        PlacedPlayer(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedPlayer(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.door:
-                        PlacedDoor(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedDoor(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.wall:
-                        PlacedWall(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedWall(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.flyer:
-                        PlacedFlyer(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedFlyer(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.reverse_wall:
-                        PlacedReverseWall(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedReverseWall(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.smily_robot:
-                        PlacedSmilyRobot(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedSmilyRobot(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.spring:
-                        PlacedSpring(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedSpring(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.diamonds:
-                        PlacedDiamonds(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedDiamonds(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.sticky_block:
-                        PlacedStickyBlock(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedStickyBlock(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.fall_spikes:
-                        PlacedFallSpikes(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedFallSpikes(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                     elif DRAGGING.stand_spikes:
-                        PlacedStandSpikes(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES)
+                        PlacedStandSpikes(snap_to_grid(MOUSEPOS, SCREEN_WIDTH, SCREEN_HEIGHT), PLACED_SPRITES, IMAGES)
                         
                 #################
                 # CLICK (RELEASE)
@@ -1419,8 +1391,8 @@ def main():
                 # Right click on obj, destroy
                     if(event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[2]):   
                         DRAGGING.dragging_all_false()
-                        START = restart_start_objects(START)
-                        PLACED_SPRITES = remove_placed_object(PLACED_SPRITES, MOUSEPOS)
+                        START = restart_start_objects(START, START_POSITIONS)
+                        remove_placed_object(PLACED_SPRITES, MOUSEPOS)
                 if event.type == MOUSEBUTTONUP:            
                     #################
                     # PLAY BUTTON
@@ -1434,27 +1406,27 @@ def main():
                             print("Play Mode Activated")
                             #MUSIC_PLAYER = [MusicPlayer()]
                             for placed_player in PlacedPlayer.player_list:
-                                PlayPlayer(placed_player.rect.topleft, PLAY_SPRITES)
+                                PlayPlayer(placed_player.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_door in PlacedDoor.door_list:
-                                PlayDoor(placed_door.rect.topleft, PLAY_SPRITES)
+                                PlayDoor(placed_door.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_wall in PlacedWall.wall_list:
-                                PlayWall(placed_wall.rect.topleft, PLAY_SPRITES)
+                                PlayWall(placed_wall.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_flyer in PlacedFlyer.flyer_list:
-                                PlayFlyer(placed_flyer.rect.topleft, PLAY_SPRITES)
+                                PlayFlyer(placed_flyer.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_reverse_wall in PlacedReverseWall.reverse_wall_list:
-                                PlayReverseWall(placed_reverse_wall.rect.topleft, PLAY_SPRITES)
+                                PlayReverseWall(placed_reverse_wall.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_smily_robot in PlacedSmilyRobot.smily_robot_list:
-                                PlaySmilyRobot(placed_smily_robot.rect.topleft, PLAY_SPRITES)
+                                PlaySmilyRobot(placed_smily_robot.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_spring_list in PlacedSpring.spring_list:
-                                PlaySpring(placed_spring_list.rect.topleft, PLAY_SPRITES)
+                                PlaySpring(placed_spring_list.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_diamonds_list in PlacedDiamonds.diamonds_list:
-                                PlayDiamonds(placed_diamonds_list.rect.topleft, PLAY_SPRITES)
+                                PlayDiamonds(placed_diamonds_list.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_sticky_block_list in PlacedStickyBlock.sticky_block_list:
-                                PlayStickyBlock(placed_sticky_block_list.rect.topleft, PLAY_SPRITES)
+                                PlayStickyBlock(placed_sticky_block_list.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_fall_spikes_list in PlacedFallSpikes.fall_spikes_list:
-                                PlayFallSpikes(placed_fall_spikes_list.rect.topleft, PLAY_SPRITES)
+                                PlayFallSpikes(placed_fall_spikes_list.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_stand_spikes_list in PlacedStandSpikes.stand_spikes_list:
-                                PlayStandSpikes(placed_stand_spikes_list.rect.topleft, PLAY_SPRITES)
+                                PlayStandSpikes(placed_stand_spikes_list.rect.topleft, PLAY_SPRITES, IMAGES)
                         else:
                             print("You need a character!")
                     #################
@@ -1477,7 +1449,7 @@ def main():
                         MENUON = 2
                     if CLEAR_BUTTON.rect.collidepoint(MOUSEPOS):
                         if game_mode == EDIT_MODE: #Editing mode
-                            START = restart_start_objects(START)
+                            START = restart_start_objects(START, START_POSITIONS)
                             # REMOVE ALL SPRITES
                             remove_all_placed()
                     if ROTATE_BUTTON.rect.collidepoint(MOUSEPOS):
@@ -1503,78 +1475,78 @@ def main():
             # Replace start sprite with blank box in top menu
             if game_mode == EDIT_MODE:
                 if DRAGGING.player and not PlacedPlayer.player_list:
-                    START.blank_box.rect.topleft = STARTPOS['player'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['player'] # Replaces in Menu
                     START.player.rect.topleft = (MOUSEPOS[0]-(START.player.image.get_width()/2),
                                                  MOUSEPOS[1]-(START.player.image.get_height()/3))
                 else:
                     DRAGGING.player = False
-                    START.player.rect.topleft = STARTPOS['player']
+                    START.player.rect.topleft = START_POSITIONS['player']
                 if DRAGGING.wall:
-                    START.blank_box.rect.topleft = STARTPOS['wall'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['wall'] # Replaces in Menu
                     START.wall.rect.topleft = (MOUSEPOS[0]-(START.wall.image.get_width()/2),
                                                MOUSEPOS[1]-(START.wall.image.get_height()/2))
                 else:
-                    START.wall.rect.topleft = STARTPOS['wall']
+                    START.wall.rect.topleft = START_POSITIONS['wall']
                 if DRAGGING.reverse_wall:
-                    START.blank_box.rect.topleft = STARTPOS['reverse_wall'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['reverse_wall'] # Replaces in Menu
                     START.reverse_wall.rect.topleft = (MOUSEPOS[0]-(START.reverse_wall.image.get_width()/2),
                                                        MOUSEPOS[1]-(START.reverse_wall.image.get_height()/2))
                 else:
-                    START.reverse_wall.rect.topleft = STARTPOS['reverse_wall']
+                    START.reverse_wall.rect.topleft = START_POSITIONS['reverse_wall']
                 if DRAGGING.diamonds:
-                    START.blank_box.rect.topleft = STARTPOS['diamonds'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['diamonds'] # Replaces in Menu
                     START.diamonds.rect.topleft = (MOUSEPOS[0]-(START.diamonds.image.get_width()/2),
                                                    MOUSEPOS[1]-(START.diamonds.image.get_height()/2))
                 else:
-                    START.diamonds.rect.topleft = STARTPOS['diamonds']
+                    START.diamonds.rect.topleft = START_POSITIONS['diamonds']
                 if DRAGGING.door and not PlacedDoor.door_list:
-                    START.blank_box.rect.topleft = STARTPOS['door'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['door'] # Replaces in Menu
                     START.door.rect.topleft = (MOUSEPOS[0]-(START.door.image.get_width()/2),
                                                MOUSEPOS[1]-(START.door.image.get_height()/4))
-                    START.door.image = IMAGES["SPR_DOOR_CLOSED"]
+                    START.door.image = IMAGES["spr_door_closed"]
                 else:
-                    START.door.rect.topleft = STARTPOS['door']
-                    START.door.image = pygame.transform.smoothscale(IMAGES["SPR_DOOR_CLOSED"], (24, 40))
+                    START.door.rect.topleft = START_POSITIONS['door']
+                    START.door.image = pygame.transform.smoothscale(IMAGES["spr_door_closed"], (24, 40))
                 if DRAGGING.flyer:
-                    START.blank_box.rect.topleft = STARTPOS['flyer'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['flyer'] # Replaces in Menu
                     START.flyer.rect.topleft = (MOUSEPOS[0]-(START.flyer.image.get_width()/2),
                                                 MOUSEPOS[1]-(START.flyer.image.get_height()/2))
                 else:
-                    START.flyer.rect.topleft = STARTPOS['flyer']
+                    START.flyer.rect.topleft = START_POSITIONS['flyer']
                 if DRAGGING.smily_robot:
-                    START.blank_box.rect.topleft = STARTPOS['smily_robot'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['smily_robot'] # Replaces in Menu
                     START.smily_robot.rect.topleft = (MOUSEPOS[0]-(START.smily_robot.image.get_width()/2),
                                                       MOUSEPOS[1]-(START.smily_robot.image.get_height()/2))
                 else:
-                    START.smily_robot.rect.topleft = STARTPOS['smily_robot']
+                    START.smily_robot.rect.topleft = START_POSITIONS['smily_robot']
                 if DRAGGING.spring:
-                    START.blank_box.rect.topleft = STARTPOS['spring'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['spring'] # Replaces in Menu
                     START.spring.rect.topleft = (MOUSEPOS[0]-(START.spring.image.get_width()/2),
                                                  MOUSEPOS[1]-(START.spring.image.get_height()/2))
                 else:
-                    START.spring.rect.topleft = STARTPOS['spring']
+                    START.spring.rect.topleft = START_POSITIONS['spring']
                 if DRAGGING.sticky_block:
-                    START.blank_box.rect.topleft = STARTPOS['sticky_block'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['sticky_block'] # Replaces in Menu
                     START.sticky_block.rect.topleft = (MOUSEPOS[0]-(START.sticky_block.image.get_width()/2),
                                                        MOUSEPOS[1]-(START.sticky_block.image.get_height()/2))
                 else:
-                    START.sticky_block.rect.topleft = STARTPOS['sticky_block']
+                    START.sticky_block.rect.topleft = START_POSITIONS['sticky_block']
                 if DRAGGING.fall_spikes:
-                    START.blank_box.rect.topleft = STARTPOS['fall_spikes'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['fall_spikes'] # Replaces in Menu
                     START.fall_spikes.rect.topleft = (MOUSEPOS[0]-(START.fall_spikes.image.get_width()/2),
                                                       MOUSEPOS[1]-(START.fall_spikes.image.get_height()/2))
                 else:
-                    START.fall_spikes.rect.topleft = STARTPOS['fall_spikes']
+                    START.fall_spikes.rect.topleft = START_POSITIONS['fall_spikes']
                 if START.stand_spikes.rotate == 0:
-                    START.stand_spikes.image = IMAGES["SPR_STANDSPIKES"]
+                    START.stand_spikes.image = IMAGES["spr_stand_spikes"]
                 else:
-                    START.stand_spikes.image = pygame.transform.rotate(IMAGES["SPR_STANDSPIKES"], START.stand_spikes.rotate)
+                    START.stand_spikes.image = pygame.transform.rotate(IMAGES["spr_stand_spikes"], START.stand_spikes.rotate)
                 if DRAGGING.stand_spikes:
-                    START.blank_box.rect.topleft = STARTPOS['stand_spikes'] # Replaces in Menu
+                    START.blank_box.rect.topleft = START_POSITIONS['stand_spikes'] # Replaces in Menu
                     START.stand_spikes.rect.topleft = (MOUSEPOS[0]-(START.stand_spikes.image.get_width()/2),
                                                        MOUSEPOS[1]-(START.stand_spikes.image.get_height()/2))
                 else:
-                    START.stand_spikes.rect.topleft = STARTPOS['stand_spikes']
+                    START.stand_spikes.rect.topleft = START_POSITIONS['stand_spikes']
                     
             ##################
             # IN-GAME ACTIONS
@@ -1624,7 +1596,7 @@ def main():
                             for i in range(0, len(PlacedFlyer.flyer_list)):
                                 PlayFlyer.flyer_list[i].rect.topleft = PlacedFlyer.flyer_list[i].rect.topleft
                             for play_diamonds in PlayDiamonds.diamonds_list:
-                                play_diamonds.image = IMAGES["SPR_DIAMONDS"]
+                                play_diamonds.image = IMAGES["spr_diamonds"]
                             for i in range(0, len(PlacedFallSpikes.fall_spikes_list)):
                                 PlayFallSpikes.fall_spikes_list[i].rect.topleft = PlacedFallSpikes.fall_spikes_list[i].rect.topleft
                                 PlayFallSpikes.fall_spikes_list[i].fall_var = 0
@@ -1659,17 +1631,17 @@ def main():
                 for play_diamonds in PlayDiamonds.diamonds_list:
                     if pygame.sprite.collide_mask(PlayPlayer.player_list[0], play_diamonds):
                         PlayPlayer.player_list[0].score += 1
-                        play_diamonds.image = IMAGES["SPR_BLANKBOX"]
+                        play_diamonds.image = IMAGES["spr_blank_box"]
                 for spring in PlaySpring.spring_list:
                     if pygame.sprite.collide_mask(PlayPlayer.player_list[0], spring):
                         if PlayPlayer.player_list[0].rect.bottom <= spring.rect.top+20 and PlayPlayer.player_list[0].speed_y >= 10: #big jumps
-                            SOUNDS["SND_SPRING"].play()
+                            SOUNDS["snd_spring"].play()
                             PlayPlayer.player_list[0].propeller = 0 
                             PlayPlayer.player_list[0].rect.bottom = spring.rect.top
                             PlayPlayer.player_list[0].speed_y = -10
                             PlayPlayer.player_list[0].jumps_left = 1 #Allows propeller in air
                         elif PlayPlayer.player_list[0].rect.bottom <= spring.rect.top+10 and PlayPlayer.player_list[0].speed_y >= 0:
-                            SOUNDS["SND_SPRING"].play()
+                            SOUNDS["snd_spring"].play()
                             PlayPlayer.player_list[0].propeller = 0 #Fixes propeller bug
                             PlayPlayer.player_list[0].rect.bottom = spring.rect.top
                             PlayPlayer.player_list[0].speed_y = -10
@@ -1701,7 +1673,7 @@ def main():
                 PLAY_SPRITES.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("Deaths: " + str(PlayPlayer.player_list[0].death_count), 1, (0, 0, 0))
             SCREEN.blit(DEATH_COUNT_TEXT, ((SCREEN_WIDTH/2-50), 5))
-            
+
             pygame.display.update()
         elif MENUON == 2: # Info SCREEN in a WHILE loop
             InfoScreen(INFO_SCREEN, SCREEN)
