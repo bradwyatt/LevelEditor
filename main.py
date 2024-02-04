@@ -17,6 +17,7 @@ from utils import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, IMAGES, SOUNDS, load_image, 
 from ui import ClearButton, InfoButton, RestartButton, GridButton, ColorButton, SaveFileButton, LoadFileButton
 from start_objects import StartWall, StartReverseWall, StartDiamonds, StartDoor, StartFlyer, StartSmilyRobot, StartSpring, StartPlayer, StartStickyBlock, StartFallSpikes, StartStandSpikes, RotateButton
 from placed_objects import PlacedWall, PlacedReverseWall, PlacedDiamonds, PlacedDoor, PlacedFlyer, PlacedSmilyRobot, PlacedSpring, PlacedStickyBlock, PlacedFallSpikes, PlacedStandSpikes, PlacedPlayer
+from play_objects import PlayWall, PlayReverseWall, PlayFlyer, PlayDiamonds, PlayDoor, PlaySmilyRobot, PlayStickyBlock, PlayStandSpikes, PlayFallSpikes, PlaySpring, PlayPlayer
 
 # Initialize pygame
 pygame.init()
@@ -82,9 +83,9 @@ def load_all_assets():
     load_image("sprites/grid.png", "spr_grid", True)
     
     #SOUNDS
-    load_sound("SOUNDS/propeller.wav", "snd_propeller")
+    load_sound("sounds/propeller.wav", "snd_propeller")
     SOUNDS["snd_propeller"].set_volume(.15)
-    load_sound("SOUNDS/spring.wav", "snd_spring")
+    load_sound("sounds/spring.wav", "snd_spring")
     SOUNDS["snd_spring"].set_volume(.15)
 
 def snap_to_grid(pos, screen_width, screen_height):
@@ -264,442 +265,6 @@ class StartBlankBox(pygame.sprite.Sprite):
             self.image = images["spr_stand_spikes"]
         else:
             self.image = images["spr_blank_box"]
-    
-class PlayWall(pygame.sprite.Sprite):
-    wall_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_wall"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlayWall.wall_list.append(self)
-    def update(self):
-        pass
-    def destroy(self):
-        PlayWall.wall_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-            
-class PlayReverseWall(pygame.sprite.Sprite):
-    reverse_wall_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        # Create a transparent surface initially instead of loading "spr_blank_box"
-        self.image = pygame.Surface((24, 24))  # Assuming 24x24 is the size for blank box
-        self.image.fill((0, 0, 0, 0))  # Fill with black color and full transparency
-        self.image.set_colorkey((0, 0, 0))  # Set black as transparent color
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlayReverseWall.reverse_wall_list.append(self)
-    def update(self):
-        pass
-    def destroy(self):
-        PlayReverseWall.reverse_wall_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-
-class PlayFlyer(pygame.sprite.Sprite):
-    flyer_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_flyer"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        self.right_or_left = random.choice([-2, 2])
-        PlayFlyer.flyer_list.append(self)
-    def update(self):
-        self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
-        for wall in PlayWall.wall_list:
-            if self.rect.colliderect(wall.rect):
-                self.right_or_left = self.right_or_left*-1
-        for reverse_wall in PlayReverseWall.reverse_wall_list:
-            if self.rect.colliderect(reverse_wall.rect):
-                self.right_or_left = self.right_or_left*-1
-        if self.rect.right > SCREEN_WIDTH or self.rect.left < 0:
-            self.right_or_left = self.right_or_left*-1
-        self.sprite_direction()
-    def sprite_direction(self):
-        if self.right_or_left == 2:
-            self.image = IMAGES["spr_flyer"]
-        elif self.right_or_left == -2:
-            self.image = pygame.transform.flip(IMAGES["spr_flyer"], 1, 0)
-    def destroy(self):
-        PlayFlyer.flyer_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-        self.right_or_left = random.choice([-2, 2])
-
-class PlayDiamonds(pygame.sprite.Sprite):
-    diamonds_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_diamonds"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlayDiamonds.diamonds_list.append(self)
-    def update(self):
-        pass
-    def destroy(self):
-        PlayDiamonds.diamonds_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-        self.image = IMAGES["spr_diamonds"]
-
-class PlayDoor(pygame.sprite.Sprite):
-    door_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_door_closed"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlayDoor.door_list.append(self)
-    def update(self):
-        pass
-    def open_or_close(self, score, diamonds_list):
-        if score == len(diamonds_list):
-            return IMAGES["spr_door_open"]
-        return IMAGES["spr_door_closed"]
-    def destroy(self):
-        PlayDoor.door_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-
-class PlaySmilyRobot(pygame.sprite.Sprite):
-    smily_robot_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_smily_robot"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlaySmilyRobot.smily_robot_list.append(self)
-        self.right_or_left = random.choice([-2, 2])
-        self.animatetimer = 0
-        self.speed_y = 0
-        self.jumps_left = 1
-        self.wall_hit_list = []
-        self.stickyblock_hit_list = []
-    def update(self):
-        if self.rect.topleft != (0, -100): # This is its out of play location
-            self.animate()
-            self.calc_grav()
-            if PlayWall.wall_list is None:
-                self.wall_hit_list = []
-            else:
-                self.wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
-            for wall in self.wall_hit_list:
-                if(self.rect.right-wall.rect.left < 5 and
-                   self.right_or_left == 2): # Robot moves right and collides into wall
-                    self.rect.right = wall.rect.left
-                    self.right_or_left = -2
-                elif(wall.rect.right-self.rect.left < 5 and
-                     self.right_or_left == -2): # Robot moves left and collides into wall
-                    self.rect.left = wall.rect.right
-                    self.right_or_left = 2
-            if PlayStickyBlock.sticky_block_list is None:
-                self.stickyblock_hit_list = []
-            else:
-                self.stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
-            for stickyblock in self.stickyblock_hit_list:
-                if(self.rect.right-stickyblock.rect.left < 5 and
-                   self.right_or_left == 2): # Robot moves right and collides into wall
-                    self.rect.right = stickyblock.rect.left
-                    self.right_or_left = -2
-                elif(stickyblock.rect.right-self.rect.left < 5 and
-                     self.right_or_left == -2): # Robot moves left and collides into wall
-                    self.rect.left = stickyblock.rect.right
-                    self.right_or_left = 2
-            self.rect.y += self.speed_y
-            if PlayWall.wall_list is None:
-                self.wall_hit_list = []
-            else:
-                self.wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
-            for wall in self.wall_hit_list:
-                # Reset our position based on the top/bottom of the object.
-                if self.speed_y > 0:
-                    self.rect.bottom = wall.rect.top # On top of the wall
-                elif self.speed_y < 0:
-                    self.rect.top = wall.rect.bottom # Below the wall
-                # Stop our vertical movement
-                self.speed_y = 0
-            if PlayStickyBlock.sticky_block_list is None:
-                self.stickyblock_hit_list = []
-            else:
-                self.stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
-            for stickyblock in self.stickyblock_hit_list:
-                # Reset our position based on the top/bottom of the object.
-                if self.speed_y > 0:
-                    self.rect.bottom = stickyblock.rect.top # On top of the wall
-                elif self.speed_y < 0:
-                    self.rect.top = stickyblock.rect.bottom # Below the wall
-                # Stop our vertical movement
-                self.speed_y = 0
-            self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
-            if PlayReverseWall.reverse_wall_list:
-                for reverse_wall in PlayReverseWall.reverse_wall_list:
-                    if self.rect.colliderect(reverse_wall.rect):
-                        self.right_or_left *= -1
-            if PlayWall.wall_list is None:
-                self.wall_hit_list = []
-            else:
-                self.wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
-            for wall in self.wall_hit_list:
-                if self.speed_y > 0:
-                    self.rect.bottom = wall.rect.top # On top of the wall
-                    self.jumps_left = 2
-            if PlayStickyBlock.sticky_block_list is None:
-                self.stickyblock_hit_list = []
-            else:
-                self.stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
-            for stickyblock in self.stickyblock_hit_list:
-                if self.speed_y > 0:
-                    self.rect.bottom = stickyblock.rect.top # On top of the wall
-                    self.jumps_left = 2
-    def destroy(self):
-        #PlaySmilyRobot.smily_robot_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-        self.speed_y = 0
-        self.right_or_left = random.choice([-2, 2])
-    def animate(self):
-        # Two different pictures to animate that makes it look like it's moving
-        self.animatetimer += 1
-        if self.animatetimer > 5:
-            self.image = IMAGES["spr_smily_robot_2"]
-        if self.animatetimer > 10:
-            self.image = IMAGES["spr_smily_robot"]
-            self.animatetimer = 0
-    def calc_grav(self):
-        if self.speed_y == 0:
-            self.speed_y = 1
-        else:
-            self.speed_y += .25
-
-        
-class PlayStickyBlock(pygame.sprite.Sprite):
-    sticky_block_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_sticky_block"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlayStickyBlock.sticky_block_list.append(self)
-    def update(self):
-        pass
-    def destroy(self):
-        PlayStickyBlock.sticky_block_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-
-class PlayFallSpikes(pygame.sprite.Sprite):
-    fall_spikes_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_fall_spikes"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlayFallSpikes.fall_spikes_list.append(self)
-        self.fall_var = 0
-    def update(self):
-        pass
-    def destroy(self):
-        PlayFallSpikes.fall_spikes_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-        self.fall_var = 0
-
-class PlayStandSpikes(pygame.sprite.Sprite):
-    stand_spikes_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_stand_spikes"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlayStandSpikes.stand_spikes_list.append(self)
-        self.fall_var = 0
-    def update(self):
-        pass
-    def destroy(self):
-        PlayStandSpikes.stand_spikes_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-
-class PlaySpring(pygame.sprite.Sprite):
-    spring_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_spring"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlaySpring.spring_list.append(self)
-    def update(self):
-        pass
-    def destroy(self):
-        PlaySpring.spring_list.remove(self)
-        self.kill()
-    def restart(self):
-        self.rect.topleft = self.pos
-
-class PlayPlayer(pygame.sprite.Sprite):
-    player_list = []
-    def __init__(self, pos, PLAY_SPRITES, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_player"]
-        self.rect = self.image.get_rect()
-        self.pos = pos
-        self.rect.topleft = self.pos
-        PLAY_SPRITES.add(self)
-        PlayPlayer.player_list.append(self)
-        self.speed_x, self.speed_y = 0, 0
-        self.jumps_left = 1
-        self.propeller, self.playerproptimer = 0, 0
-        self.last_pressed_r = 1
-        self.score = 0
-        self.death_count = 0
-        self.wall_hit_list = []
-        self.stickyblock_hit_list = []
-    def update(self):
-        self.calc_grav()
-        self.rect.x += self.speed_x
-        
-        #####################
-        # WALLS
-        #####################
-        self.wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
-        for wall in self.wall_hit_list:
-            if self.speed_x > 0: #player moves right and collides into wall
-                self.rect.right = wall.rect.left
-            elif self.speed_x < 0: #player moves left and collides into wall
-                self.rect.left = wall.rect.right
-        self.stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
-        for stickyblock in self.stickyblock_hit_list:
-            if self.speed_x > 0: #player moves right and collides into wall
-                self.rect.right = stickyblock.rect.left
-            elif self.speed_x < 0: #player moves left and collides into wall
-                self.rect.left = stickyblock.rect.right
-        self.rect.y += self.speed_y
-        # Check and see if we hit anything
-        self.wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
-        for wall in self.wall_hit_list:
-            # Reset our position based on the top/bottom of the object.
-            if self.speed_y > 0:
-                self.rect.bottom = wall.rect.top #On top of the wall
-                self.jumps_left = 2
-            elif self.speed_y < 0:
-                self.rect.top = wall.rect.bottom #Below the wall
-            # Stop our vertical movement
-            self.speed_y = 0
-            self.propeller = 0
-        self.stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
-        for stickyblock in self.stickyblock_hit_list:
-            # Reset our position based on the top/bottom of the object.
-            if self.speed_y > 0:
-                self.rect.bottom = stickyblock.rect.top #On top
-                self.jumps_left = 2
-            elif self.speed_y < 0:
-                self.rect.top = stickyblock.rect.bottom #Below
-            # Stop our vertical movement
-            self.speed_y = 0
-            self.propeller = 0
-        self.animate_images()
-        
-        
-    def destroy(self):
-        PlayPlayer.player_list.remove(self)
-        self.kill()
-    def go_left(self):
-        self.speed_x = -4
-    def go_right(self):
-        self.speed_x = 4
-    def stop(self):
-        self.speed_x = 0
-    def calc_grav(self):
-        if self.speed_y == 0:
-            self.speed_y = 1
-        elif self.propeller == 1:
-            self.speed_y += .01
-            if self.speed_y >= -2:
-                SOUNDS["snd_propeller"].play()
-            if self.speed_y > -1.5:
-                self.propeller = 0
-                self.speed_y += .25
-        else:
-            SOUNDS["snd_propeller"].stop()
-            self.speed_y += .25
-    def jump(self):
-        # For moving platforms that go up and down...
-        self.speed_y += 2
-        self.speed_y -= 2
-        # If there is a platform below you, you are able to jump
-        if self.wall_hit_list and self.jumps_left == 2: #Big First Jump
-            self.speed_y = -7
-            self.jumps_left = 1
-        elif self.stickyblock_hit_list and self.jumps_left >= 1: # Sticky --> No Jump
-            self.jumps_left = 0
-        elif not self.wall_hit_list and self.jumps_left >= 1: # Double Jump when not on platform
-            self.speed_y = -2
-            self.propeller = 1
-            self.jumps_left = 0
-        elif not self.wall_hit_list: # If Player is not on top of wall, he only has propeller left
-            if self.jumps_left == 2:
-                self.jumps_left = 1
-    def animate_images(self):
-        if self.propeller == 1:
-            self.playerproptimer += 1
-            if self.last_pressed_r == 1:
-                if self.playerproptimer > 1:
-                    self.image = IMAGES["spr_player_propeller"]
-                if self.playerproptimer > 3:
-                    self.image = IMAGES["spr_player"]
-                    self.playerproptimer = 0
-            if self.last_pressed_r == 0:
-                if self.playerproptimer > 1:
-                    self.image = pygame.transform.flip(IMAGES["spr_player_propeller"], 1, 0)
-                if self.playerproptimer > 3:
-                    self.image = pygame.transform.flip(IMAGES["spr_player"], 1, 0)
-                    self.playerproptimer = 0
-        else:
-            if self.last_pressed_r == 1:
-                self.image = IMAGES["spr_player"]
-            else:
-                self.image = pygame.transform.flip(IMAGES["spr_player"], 1, 0)
-    def restart(self):
-        # Game Reset
-        self.jumps_left = 1
-        self.speed_y = 0
-        self.propeller = 0
-        self.last_pressed_r = 1
-        self.score = 0
-        self.death_count += 1
-        self.rect.topleft = self.pos
 
 class PlayEditSwitchButton(pygame.sprite.Sprite):
     def __init__(self, pos, GAME_MODE_SPRITES, images):
@@ -718,10 +283,10 @@ class PlayEditSwitchButton(pygame.sprite.Sprite):
 class MusicPlayer():
     def __init__(self, game_mode):
         if game_mode == 1:
-            pygame.mixer.music.load("SOUNDS/play_music.mp3")
+            pygame.mixer.music.load("Sounds/play_music.mp3")
             pygame.mixer.music.play(-1)
         else:
-            pygame.mixer.music.load("SOUNDS/editing_mode.wav")
+            pygame.mixer.music.load("Sounds/editing_mode.wav")
             pygame.mixer.music.play(-1)
 
 class Grid(pygame.sprite.Sprite):
@@ -740,17 +305,7 @@ class Grid(pygame.sprite.Sprite):
 
 class Dragging():
     def __init__(self):
-        self.player = False
-        self.wall = False
-        self.flyer = False
-        self.reverse_wall = False
-        self.spring = False
-        self.smily_robot = False
-        self.door = False
-        self.diamonds = False
-        self.sticky_block = False
-        self.fall_spikes = False
-        self.stand_spikes = False
+        self.dragging_all_false()
     def dragging_all_false(self):
         self.player = False
         self.wall = False
@@ -915,7 +470,7 @@ def main():
             grid.rect.topleft = i, j
     
     while True:
-        clock.tick(60)
+        clock.tick(FPS)
         MOUSEPOS = pygame.mouse.get_pos()
         
         if state == RUNNING and MENUON == 1: # Initiate room
@@ -1077,7 +632,7 @@ def main():
                             print("Play Mode Activated")
                             #MUSIC_PLAYER = [MusicPlayer()]
                             for placed_player in PlacedPlayer.player_list:
-                                PlayPlayer(placed_player.rect.topleft, PLAY_SPRITES, IMAGES)
+                                PlayPlayer(placed_player.rect.topleft, PLAY_SPRITES, IMAGES, SOUNDS)
                             for placed_door in PlacedDoor.door_list:
                                 PlayDoor(placed_door.rect.topleft, PLAY_SPRITES, IMAGES)
                             for placed_wall in PlacedWall.wall_list:
@@ -1280,7 +835,7 @@ def main():
                 for play_smily_robot in PlaySmilyRobot.smily_robot_list:
                     if PlayPlayer.player_list[0].rect.colliderect(play_smily_robot.rect):
                         if(PlayPlayer.player_list[0].rect.bottom <= play_smily_robot.rect.top + 10 and PlayPlayer.player_list[0].speed_y >= 0):
-                            play_smily_robot.rect.topleft = (0, -100)
+                            play_smily_robot.rect.topleft = PlaySmilyRobot.OUT_OF_PLAY_TOPLEFT
                             PlayPlayer.player_list[0].propeller = 0
                             PlayPlayer.player_list[0].speed_y = -4
                             PlayPlayer.player_list[0].jumps_left = 1 #Allows propeller in air
