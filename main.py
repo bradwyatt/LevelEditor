@@ -14,6 +14,8 @@ from pygame.constants import RLEACCEL
 from pygame.locals import (KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP, K_LEFT,
                            K_RIGHT, QUIT, K_ESCAPE)
 from utils import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, IMAGES, SOUNDS, load_image, load_sound
+from ui import ClearButton, InfoButton, RestartButton, GridButton, ColorButton, SaveFileButton, LoadFileButton
+from start_objects import StartWall, StartReverseWall, StartDiamonds, StartDoor, StartFlyer, StartSmilyRobot, StartSpring, StartPlayer, StartStickyBlock, StartFallSpikes, StartStandSpikes, RotateButton
 
 # Initialize pygame
 pygame.init()
@@ -226,70 +228,6 @@ class InfoScreen():
                         self.menuon = 1
                         break
 
-class ClearButton(pygame.sprite.Sprite):
-    def __init__(self, pos, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_clear_button"]
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
-        
-
-class InfoButton(pygame.sprite.Sprite):
-    def __init__(self, pos, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_info_button"]
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
-        
-
-class RestartButton(pygame.sprite.Sprite):
-    def __init__(self, pos, play_sprites, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_restart_button"]
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
-        play_sprites.add(self)
-
-class GridButton(pygame.sprite.Sprite):
-    def __init__(self, pos, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_grid_button"]
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
-        
-        self.grid_on_var = 1
-
-class ColorButton(pygame.sprite.Sprite):
-    def __init__(self, pos, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_color_button"]
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
-        
-
-class SaveFileButton(pygame.sprite.Sprite):
-    def __init__(self, pos, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_save_file_button"]
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
-        
-
-class LoadFileButton(pygame.sprite.Sprite):
-    def __init__(self, pos, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_load_file_button"]
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
-        
-
-class RotateButton(pygame.sprite.Sprite):
-    def __init__(self, pos, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_rotate_button"]
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
-        
 
 class StartBlankBox(pygame.sprite.Sprite):
     def __init__(self, images):
@@ -325,106 +263,6 @@ class StartBlankBox(pygame.sprite.Sprite):
             self.image = images["spr_stand_spikes"]
         else:
             self.image = images["spr_blank_box"]
-
-class StartWall(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_wall"]
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartReverseWall(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_reverse_wall"]
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartDiamonds(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_diamonds"]
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartDoor(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.transform.smoothscale(images["spr_door_closed"], (24, 40))
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartFlyer(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_flyer"]
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartSmilyRobot(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_smily_robot"]
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartSpring(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_spring"]
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartPlayer(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_player"]
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartStickyBlock(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_sticky_block"]
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartFallSpikes(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_fall_spikes"]
-        self.rect = self.image.get_rect()
-        
-    def update(self):
-        pass
-
-class StartStandSpikes(pygame.sprite.Sprite):
-    def __init__(self, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_stand_spikes"]
-        self.rect = self.image.get_rect()
-        
-        self.rotate = 0
-    def update(self):
-        pass
 
 class PlacedWall(pygame.sprite.Sprite):
     wall_list = []
@@ -1098,27 +936,27 @@ class Start():
     def __init__(self):
         self.blank_box = StartBlankBox(IMAGES)
         START_SPRITES.add(self.blank_box)
-        self.player = StartPlayer(IMAGES)
+        self.player = StartPlayer((10, 4), IMAGES)
         START_SPRITES.add(self.player)
-        self.wall = StartWall(IMAGES)
+        self.wall = StartWall((40, 12), IMAGES)
         START_SPRITES.add(self.wall)
-        self.flyer = StartFlyer(IMAGES)
+        self.flyer = StartFlyer((130, 12), IMAGES)
         START_SPRITES.add(self.flyer)
-        self.reverse_wall = StartReverseWall(IMAGES)
+        self.reverse_wall = StartReverseWall((102, 12), IMAGES)
         START_SPRITES.add(self.reverse_wall)
-        self.spring = StartSpring(IMAGES)
+        self.spring = StartSpring((255, 12), IMAGES)
         START_SPRITES.add(self.spring)
-        self.smily_robot = StartSmilyRobot(IMAGES)
+        self.smily_robot = StartSmilyRobot((162, 12), IMAGES)
         START_SPRITES.add(self.smily_robot)
-        self.door = StartDoor(IMAGES)
+        self.door = StartDoor((195, 2), IMAGES)
         START_SPRITES.add(self.door)
-        self.diamonds = StartDiamonds(IMAGES)
+        self.diamonds = StartDiamonds((225, 14), IMAGES)
         START_SPRITES.add(self.diamonds)
-        self.sticky_block = StartStickyBlock(IMAGES)
+        self.sticky_block = StartStickyBlock((70, 12), IMAGES)
         START_SPRITES.add(self.sticky_block)
-        self.fall_spikes = StartFallSpikes(IMAGES)
+        self.fall_spikes = StartFallSpikes((290, 12), IMAGES)
         START_SPRITES.add(self.fall_spikes)
-        self.stand_spikes = StartStandSpikes(IMAGES)
+        self.stand_spikes = StartStandSpikes((320, 12), IMAGES)
         START_SPRITES.add(self.stand_spikes)
 
         
