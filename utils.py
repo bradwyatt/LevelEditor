@@ -4,6 +4,7 @@ import os
 # Constants
 SCREEN_WIDTH, SCREEN_HEIGHT = 1024, 600
 FPS = 60
+MOBILE_ACCESSIBILITY_MODE = True
 
 IMAGES = {}
 SOUNDS = {}
