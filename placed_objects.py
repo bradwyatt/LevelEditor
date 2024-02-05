@@ -121,13 +121,5 @@ class PlacedStandSpikes(PlacedObject):
         PlacedStandSpikes.stand_spikes_list.remove(self)
         
 class PlacedPlayer(PlacedObject):
-    player_list = []
-
     def __init__(self, pos, placed_sprites, images):
         super().__init__(pos, placed_sprites, images["spr_player"])
-
-    def add_to_class_list(self):
-        PlacedPlayer.player_list.append(self)
-
-    def remove_from_class_list(self):
-        PlacedPlayer.player_list.remove(self)

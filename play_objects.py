@@ -283,7 +283,6 @@ class PlaySpring(PlayObject):
         PlaySpring.spring_list.remove(self)
 
 class PlayPlayer(PlayObject):
-    player_list = []
     def __init__(self, pos, play_sprites, images, sounds):
         pygame.sprite.Sprite.__init__(self)
         super().__init__(pos, play_sprites, images["spr_player"])
@@ -406,8 +405,4 @@ class PlayPlayer(PlayObject):
         self.last_pressed_r = 1
         self.score = 0
         self.death_count += 1
-        self.rect.topleft = self.pos    
-    def add_to_class_list(self):
-        PlayPlayer.player_list.append(self)
-    def remove_from_class_list(self):
-        PlayPlayer.player_list.remove(self)
+        self.rect.topleft = self.pos
