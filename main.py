@@ -371,8 +371,6 @@ class GameState:
                 'spring': (255, 12), 'flyer': (130, 12), 'smily_robot': (162, 12),
                 'door': (195, 2), 'diamonds': (225, 14), 'sticky_block': (70, 12),
                 'fall_spikes': (290, 12), 'stand_spikes': (320, 12)}
-    RUNNING, DEBUG = 0, 1
-    STATE = RUNNING
     TOP_UI_BOUNDARY_Y_HEIGHT = 96
     GRID_SPACING = 24
     def __init__(self):
@@ -391,6 +389,7 @@ class GameState:
         self.init_ui_elements()
         
         self.placed_player = None
+        self.is_paused = False
 
     def update_mouse_pos(self):
         self.mouse_pos = pygame.mouse.get_pos()
@@ -414,13 +413,18 @@ class GameState:
             
     def handle_events(self):
         for event in pygame.event.get():
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_SPACE:
-                    debug_message = True
-                    GameState.STATE = GameState.DEBUG
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.key == pygame.K_SPACE:
+                    # Toggle pause state
+                    self.is_paused = not self.is_paused
+                    print("Pause Toggled:", self.is_paused)
+
                     
             #################
             # LEFT CLICK (PRESSED DOWN) at Top of Screen
@@ -609,7 +613,7 @@ class GameState:
             #################
             # KEYBOARD EVENTS (PLAYER)
             #################
-            if self.game_mode == self.PLAY_MODE:
+            if not self.is_paused and self.game_mode == self.PLAY_MODE:
                 if event.type == pygame.KEYUP:
                     if event.key == K_LEFT and self.play_player.speed_x < 0:
                         self.play_player.stop()
@@ -694,107 +698,108 @@ class GameState:
         else:
             self.start.stand_spikes.rect.topleft = self.START_POSITIONS['stand_spikes']       
     def play_mode_function(self):
-        # Avoid player going off screen
-        keys_pressed = pygame.key.get_pressed()
-        if keys_pressed[K_LEFT]:
-            self.play_player.last_pressed_r = 0
-            if self.play_player.rect.left > 0:
-                self.play_player.go_left()
-            else:
-                self.play_player.stop()
-        if keys_pressed[K_RIGHT]:
-            self.play_player.last_pressed_r = 1
-            if self.play_player.rect.right < SCREEN_WIDTH:
-                self.play_player.go_right()
-            else:
-                self.play_player.stop()
-        # Dead
-        if self.play_player.rect.top > SCREEN_HEIGHT and self.play_player.speed_y >= 0:
-            restart_level(self)
-        # Spikes fall when player goes underneath
-        if PlayFallSpikes.fall_spikes_list:
-            for fall_spike in PlayFallSpikes.fall_spikes_list:
-                if(self.play_player.rect.right > fall_spike.rect.left and
-                   self.play_player.rect.left < fall_spike.rect.right and
-                   self.play_player.rect.top > fall_spike.rect.bottom):
-                    fall_spike.fall_var = 1
-                if fall_spike.fall_var == 1:
-                    fall_spike.rect.top = fall_spike.rect.top + 5
-        # Player wins when he captures all jewels and enters door
-        if PlayDoor.door_list:
-            PlayDoor.door_list[0].image = PlayDoor.door_list[0].open_or_close(self.play_player.score, PlayDiamonds.diamonds_list)
-            if pygame.sprite.collide_mask(self.play_player, PlayDoor.door_list[0]):
-                if self.play_player.score == len(PlayDiamonds.diamonds_list):
-                    print("You Win!")
-                    self.play_player.death_count = 0
-                    self.game_mode = self.EDIT_MODE
-                    self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
-                    #music_player = [MusicPlayer()]
-                    self.play_player.rect.topleft = self.placed_player.rect.topleft
-                    for i in range(0, len(PlacedSmilyRobot.smily_robot_list)):
-                        PlaySmilyRobot.smily_robot_list[i].rect.topleft = PlacedSmilyRobot.smily_robot_list[i].rect.topleft
-                        PlaySmilyRobot.smily_robot_list[i].speed_y = 0
-                    for i in range(0, len(PlacedFlyer.flyer_list)):
-                        PlayFlyer.flyer_list[i].rect.topleft = PlacedFlyer.flyer_list[i].rect.topleft
-                    for play_diamonds in PlayDiamonds.diamonds_list:
-                        play_diamonds.image = IMAGES["spr_diamonds"]
-                    for i in range(0, len(PlacedFallSpikes.fall_spikes_list)):
-                        PlayFallSpikes.fall_spikes_list[i].rect.topleft = PlacedFallSpikes.fall_spikes_list[i].rect.topleft
-                        PlayFallSpikes.fall_spikes_list[i].fall_var = 0
+        if not self.is_paused:
+            # Avoid player going off screen
+            keys_pressed = pygame.key.get_pressed()
+            if keys_pressed[K_LEFT]:
+                self.play_player.last_pressed_r = 0
+                if self.play_player.rect.left > 0:
+                    self.play_player.go_left()
+                else:
+                    self.play_player.stop()
+            if keys_pressed[K_RIGHT]:
+                self.play_player.last_pressed_r = 1
+                if self.play_player.rect.right < SCREEN_WIDTH:
+                    self.play_player.go_right()
+                else:
+                    self.play_player.stop()
+            # Dead
+            if self.play_player.rect.top > SCREEN_HEIGHT and self.play_player.speed_y >= 0:
+                restart_level(self)
+            # Spikes fall when player goes underneath
+            if PlayFallSpikes.fall_spikes_list:
+                for fall_spike in PlayFallSpikes.fall_spikes_list:
+                    if(self.play_player.rect.right > fall_spike.rect.left and
+                       self.play_player.rect.left < fall_spike.rect.right and
+                       self.play_player.rect.top > fall_spike.rect.bottom):
+                        fall_spike.fall_var = 1
+                    if fall_spike.fall_var == 1:
+                        fall_spike.rect.top = fall_spike.rect.top + 5
+            # Player wins when he captures all jewels and enters door
+            if PlayDoor.door_list:
+                PlayDoor.door_list[0].image = PlayDoor.door_list[0].open_or_close(self.play_player.score, PlayDiamonds.diamonds_list)
+                if pygame.sprite.collide_mask(self.play_player, PlayDoor.door_list[0]):
+                    if self.play_player.score == len(PlayDiamonds.diamonds_list):
+                        print("You Win!")
+                        self.play_player.death_count = 0
+                        self.game_mode = self.EDIT_MODE
+                        self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
+                        #music_player = [MusicPlayer()]
+                        self.play_player.rect.topleft = self.placed_player.rect.topleft
+                        for i in range(0, len(PlacedSmilyRobot.smily_robot_list)):
+                            PlaySmilyRobot.smily_robot_list[i].rect.topleft = PlacedSmilyRobot.smily_robot_list[i].rect.topleft
+                            PlaySmilyRobot.smily_robot_list[i].speed_y = 0
+                        for i in range(0, len(PlacedFlyer.flyer_list)):
+                            PlayFlyer.flyer_list[i].rect.topleft = PlacedFlyer.flyer_list[i].rect.topleft
+                        for play_diamonds in PlayDiamonds.diamonds_list:
+                            play_diamonds.image = IMAGES["spr_diamonds"]
+                        for i in range(0, len(PlacedFallSpikes.fall_spikes_list)):
+                            PlayFallSpikes.fall_spikes_list[i].rect.topleft = PlacedFallSpikes.fall_spikes_list[i].rect.topleft
+                            PlayFallSpikes.fall_spikes_list[i].fall_var = 0
+                        
+    
                     
-
-                
-        #####################
-        # COLLISIONS
-        #####################
-        for play_smily_robot in PlaySmilyRobot.smily_robot_list:
-            if self.play_player.rect.colliderect(play_smily_robot.rect):
-                if(self.play_player.rect.bottom <= play_smily_robot.rect.top + 10 and self.play_player.speed_y >= 0):
-                    play_smily_robot.rect.topleft = PlaySmilyRobot.OUT_OF_PLAY_TOPLEFT
-                    self.play_player.propeller = 0
-                    self.play_player.speed_y = -4
-                    self.play_player.jumps_left = 1 #Allows propeller in air
-                elif(self.play_player.rect.right-play_smily_robot.rect.left <= 10 and
-                     self.play_player.rect.bottom > play_smily_robot.rect.top + 10):
+            #####################
+            # COLLISIONS
+            #####################
+            for play_smily_robot in PlaySmilyRobot.smily_robot_list:
+                if self.play_player.rect.colliderect(play_smily_robot.rect):
+                    if(self.play_player.rect.bottom <= play_smily_robot.rect.top + 10 and self.play_player.speed_y >= 0):
+                        play_smily_robot.rect.topleft = PlaySmilyRobot.OUT_OF_PLAY_TOPLEFT
+                        self.play_player.propeller = 0
+                        self.play_player.speed_y = -4
+                        self.play_player.jumps_left = 1 #Allows propeller in air
+                    elif(self.play_player.rect.right-play_smily_robot.rect.left <= 10 and
+                         self.play_player.rect.bottom > play_smily_robot.rect.top + 10):
+                        restart_level(self)
+                    elif(self.play_player.rect.left-play_smily_robot.rect.right <= 10 and
+                         self.play_player.rect.bottom > play_smily_robot.rect.top + 10):
+                        restart_level(self)
+            for play_flyer in PlayFlyer.flyer_list:
+                if self.play_player.rect.colliderect(play_flyer.rect):
                     restart_level(self)
-                elif(self.play_player.rect.left-play_smily_robot.rect.right <= 10 and
-                     self.play_player.rect.bottom > play_smily_robot.rect.top + 10):
+            for play_fall_spikes in PlayFallSpikes.fall_spikes_list:
+                if self.play_player.rect.colliderect(play_fall_spikes.rect):
                     restart_level(self)
-        for play_flyer in PlayFlyer.flyer_list:
-            if self.play_player.rect.colliderect(play_flyer.rect):
-                restart_level(self)
-        for play_fall_spikes in PlayFallSpikes.fall_spikes_list:
-            if self.play_player.rect.colliderect(play_fall_spikes.rect):
-                restart_level(self)
-        for play_stand_spikes in PlayStandSpikes.stand_spikes_list:
-            if self.play_player.rect.colliderect(play_stand_spikes.rect):
-                restart_level(self)
-        for play_diamonds in PlayDiamonds.diamonds_list:
-            if pygame.sprite.collide_mask(self.play_player, play_diamonds):
-                self.play_player.score += 1
-                play_diamonds.image = IMAGES["spr_blank_box"]
-        for spring in PlaySpring.spring_list:
-            if pygame.sprite.collide_mask(self.play_player, spring):
-                if self.play_player.rect.bottom <= spring.rect.top+20 and self.play_player.speed_y >= 10: #big jumps
-                    SOUNDS["snd_spring"].play()
-                    self.play_player.propeller = 0 
-                    self.play_player.rect.bottom = spring.rect.top
-                    self.play_player.speed_y = -10
-                    self.play_player.jumps_left = 1 #Allows propeller in air
-                elif self.play_player.rect.bottom <= spring.rect.top+10 and self.play_player.speed_y >= 0:
-                    SOUNDS["snd_spring"].play()
-                    self.play_player.propeller = 0 #Fixes propeller bug
-                    self.play_player.rect.bottom = spring.rect.top
-                    self.play_player.speed_y = -10
-                    self.play_player.jumps_left = 1 #Allows propeller in air
-                elif self.play_player.speed_x > 0:
-                    self.play_player.rect.right = spring.rect.left
-                elif self.play_player.speed_x < 0:
-                    self.play_player.rect.left = spring.rect.right
-                elif self.play_player.speed_y < 0:
-                    self.play_player.speed_y = 0
-                    self.play_player.propeller = 0
-                    self.play_player.rect.top = spring.rect.bottom #Below the wall
+            for play_stand_spikes in PlayStandSpikes.stand_spikes_list:
+                if self.play_player.rect.colliderect(play_stand_spikes.rect):
+                    restart_level(self)
+            for play_diamonds in PlayDiamonds.diamonds_list:
+                if pygame.sprite.collide_mask(self.play_player, play_diamonds):
+                    self.play_player.score += 1
+                    play_diamonds.image = IMAGES["spr_blank_box"]
+            for spring in PlaySpring.spring_list:
+                if pygame.sprite.collide_mask(self.play_player, spring):
+                    if self.play_player.rect.bottom <= spring.rect.top+20 and self.play_player.speed_y >= 10: #big jumps
+                        SOUNDS["snd_spring"].play()
+                        self.play_player.propeller = 0 
+                        self.play_player.rect.bottom = spring.rect.top
+                        self.play_player.speed_y = -10
+                        self.play_player.jumps_left = 1 #Allows propeller in air
+                    elif self.play_player.rect.bottom <= spring.rect.top+10 and self.play_player.speed_y >= 0:
+                        SOUNDS["snd_spring"].play()
+                        self.play_player.propeller = 0 #Fixes propeller bug
+                        self.play_player.rect.bottom = spring.rect.top
+                        self.play_player.speed_y = -10
+                        self.play_player.jumps_left = 1 #Allows propeller in air
+                    elif self.play_player.speed_x > 0:
+                        self.play_player.rect.right = spring.rect.left
+                    elif self.play_player.speed_x < 0:
+                        self.play_player.rect.left = spring.rect.right
+                    elif self.play_player.speed_y < 0:
+                        self.play_player.speed_y = 0
+                        self.play_player.propeller = 0
+                        self.play_player.rect.top = spring.rect.bottom #Below the wall
     def initiate_room(self):
         self.start.player.rect.topleft = self.START_POSITIONS['player']
         self.start.wall.rect.topleft = self.START_POSITIONS['wall']
@@ -901,8 +906,6 @@ def main():
 
     COLORKEY = [160, 160, 160]
     
-    debug_message = False
-    
     #Fonts
     FONT_ARIAL = pygame.font.SysFont('Arial', 24)
 
@@ -922,35 +925,33 @@ def main():
                                GameState.GRID_SPACING, 
                                GameState.TOP_UI_BOUNDARY_Y_HEIGHT)
     
-    while GameState.STATE == GameState.RUNNING:
+    while True:
         clock.tick(FPS)
         game_state.update_mouse_pos()
         
-        if GameState.STATE == GameState.RUNNING and MENUON == 1: # Initiate room
+        if MENUON == 1: # Initiate room
             game_state.initiate_room()
             game_state.handle_events()
-
-            ##################
-            # ALL EDIT ACTIONS
-            ##################
-            if game_state.game_mode == game_state.EDIT_MODE:
-                game_state.edit_mode_function()
-                    
-            ##################
-            # IN-GAME ACTIONS
-            ##################
-            if game_state.game_mode == game_state.PLAY_MODE:
-                game_state.play_mode_function()
+            
+            if not game_state.is_paused:
+                # Only update game logic if the game is not paused
+                game_state.handle_events()
+                if game_state.game_mode == GameState.EDIT_MODE:
+                    game_state.edit_mode_function()
+                elif game_state.game_mode == GameState.PLAY_MODE:
+                    game_state.play_mode_function()
+                    game_state.play_sprites.update()
+            else:
+                # Game is paused
+                pass
                 
-
-            #FOR DEBUGGING PURPOSES, PUT TEST CODE BELOW
             
             SCREEN.fill(COLORKEY)
 
             #Update all sprites
             game_state.start_sprites.update()
             game_state.placed_sprites.update()
-            game_state.play_sprites.update()
+            
             game_state.game_mode_sprites.draw(SCREEN)
             if game_state.game_mode == game_state.EDIT_MODE: #Only draw placed sprites in editing mode
                 if game_state.grid_button.grid_on_var:
@@ -967,18 +968,6 @@ def main():
         elif MENUON == 2: # Info SCREEN in a WHILE loop
             InfoScreen(INFO_SCREEN, SCREEN)
             MENUON = 1
-        elif GameState.STATE == GameState.DEBUG:
-            if debug_message == True:
-                print("Entering debug mode")
-                # USE BREAKPOINT HERE
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.KEYUP:
-                    if event.key == pygame.K_SPACE:
-                        debug_message = False
-                        state = GameState.STATE
         
 if __name__ == "__main__":
     main()
