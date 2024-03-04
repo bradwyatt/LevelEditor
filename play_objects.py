@@ -83,7 +83,6 @@ class PlayDiamonds(PlayObject):
         PlayDiamonds.diamonds_list.remove(self)
         
 class PlayDoor(PlayObject):
-    door_list = []
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_door_closed"])
         self.pos = pos
@@ -95,10 +94,6 @@ class PlayDoor(PlayObject):
         return self.images["spr_door_closed"]
     def restart(self):
         self.rect.topleft = self.pos
-    def add_to_class_list(self):
-        PlayDoor.door_list.append(self)
-    def remove_from_class_list(self):
-        PlayDoor.door_list.remove(self)
         
 class PlaySmilyRobot(PlayObject):
     smily_robot_list = []

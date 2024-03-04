@@ -98,7 +98,7 @@ def remove_placed_object(placed_sprites, mouse_pos, game_state):
     # Iterate over all lists except the player list, which is handled separately now.
     for placed_item_list in (PlacedWall.wall_list, PlacedFlyer.flyer_list,
                              PlacedSpring.spring_list, PlacedDiamonds.diamonds_list, PlacedReverseWall.reverse_wall_list,
-                             PlacedSmilyRobot.smily_robot_list, PlacedDoor.door_list, PlacedStickyBlock.sticky_block_list,
+                             PlacedSmilyRobot.smily_robot_list, PlacedStickyBlock.sticky_block_list,
                              PlacedFallSpikes.fall_spikes_list, PlacedStandSpikes.stand_spikes_list):
         for placed_item in placed_item_list:
             if placed_item.rect.collidepoint(mouse_pos):
@@ -109,6 +109,9 @@ def remove_placed_object(placed_sprites, mouse_pos, game_state):
     if game_state.placed_player and game_state.placed_player.rect.collidepoint(mouse_pos):
         placed_sprites.remove(game_state.placed_player)
         game_state.placed_player = None  # Directly set the player to None since it's no longer a list.
+    if game_state.placed_door and game_state.placed_door.rect.collidepoint(mouse_pos):
+        placed_sprites.remove(game_state.placed_door)
+        game_state.placed_door = None  # Directly set the player to None since it's no longer a list.
 
     return placed_sprites
 
@@ -138,8 +141,7 @@ def load_file(PLACED_SPRITES, colorkey, game_state):
     loaded_dict = literal_eval(loaded_file)
             
     game_state.play_player.destroy()
-    for door in PlayDoor.door_list:
-        door.destroy()
+    game_state.play_door.destroy()
     for wall in PlayWall.wall_list:
         wall.destroy()
     for reverse_wall in PlayReverseWall.reverse_wall_list:
@@ -194,7 +196,7 @@ def load_file(PLACED_SPRITES, colorkey, game_state):
 
 def save_file(colorkey):
     try:
-        if PlacedPlayer.player_list and PlacedDoor.door_list:
+        if GameState.placed_player and GameState.placed_door:
             # default extension is optional, here will add .txt if missing
             save_file_prompt = asksaveasfilename(defaultextension=".lvl")
             save_file_name = open(save_file_prompt, "w")
@@ -392,6 +394,8 @@ class GameState:
         
         self.placed_player = None
         self.play_player = None
+        self.placed_door = None
+        self.play_door = None
         self.is_paused = False
 
     def update_mouse_pos(self):
@@ -463,7 +467,7 @@ class GameState:
                         else:
                             print("Error: Too many players")
                     elif self.start.door.rect.collidepoint(self.mouse_pos):
-                        if not PlacedDoor.door_list:
+                        if self.placed_door is None:
                             self.dragging.dragging_all_false()
                             self.start = restart_start_objects(self.start, self.START_POSITIONS)
                             self.dragging.door = True
@@ -526,7 +530,7 @@ class GameState:
                     self.placed_player = PlacedPlayer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.door:
                     remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedDoor(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    self.placed_door = PlacedDoor(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.wall:
                     remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
@@ -578,8 +582,8 @@ class GameState:
                         
                         #MUSIC_PLAYER = [MusicPlayer()]
                         self.play_player = PlayPlayer(self.placed_player.rect.topleft, self.play_sprites, IMAGES, SOUNDS)
-                        for placed_door in PlacedDoor.door_list:
-                            PlayDoor(placed_door.rect.topleft, self.play_sprites, IMAGES)
+                        if self.placed_door:
+                            self.play_door = PlayDoor(self.placed_door.rect.topleft, self.play_sprites, IMAGES)
                         for placed_wall in PlacedWall.wall_list:
                             PlayWall(placed_wall.rect.topleft, self.play_sprites, IMAGES)
                         for placed_flyer in PlacedFlyer.flyer_list:
@@ -635,6 +639,14 @@ class GameState:
         else:
             self.dragging.player = False
             self.start.player.rect.topleft = self.START_POSITIONS['player']
+        if self.dragging.door and self.placed_door is None:
+            self.start.blank_box.rect.topleft = self.START_POSITIONS['door'] # Replaces in Menu
+            self.start.door.rect.topleft = (self.mouse_pos[0]-(self.start.door.image.get_width()/2),
+                                       self.mouse_pos[1]-(self.start.door.image.get_height()/4))
+            self.start.door.image = IMAGES["spr_door_closed"]
+        else:
+            self.dragging.door = False
+            self.start.door.rect.topleft = self.START_POSITIONS['door']
         if self.dragging.wall:
             self.start.blank_box.rect.topleft = self.START_POSITIONS['wall'] # Replaces in Menu
             self.start.wall.rect.topleft = (self.mouse_pos[0]-(self.start.wall.image.get_width()/2),
@@ -653,14 +665,6 @@ class GameState:
                                            self.mouse_pos[1]-(self.start.diamonds.image.get_height()/2))
         else:
             self.start.diamonds.rect.topleft = self.START_POSITIONS['diamonds']
-        if self.dragging.door and not PlacedDoor.door_list:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['door'] # Replaces in Menu
-            self.start.door.rect.topleft = (self.mouse_pos[0]-(self.start.door.image.get_width()/2),
-                                       self.mouse_pos[1]-(self.start.door.image.get_height()/4))
-            self.start.door.image = IMAGES["spr_door_closed"]
-        else:
-            self.start.door.rect.topleft = self.START_POSITIONS['door']
-            self.start.door.image = pygame.transform.smoothscale(IMAGES["spr_door_closed"], (24, 40))
         if self.dragging.flyer:
             self.start.blank_box.rect.topleft = self.START_POSITIONS['flyer'] # Replaces in Menu
             self.start.flyer.rect.topleft = (self.mouse_pos[0]-(self.start.flyer.image.get_width()/2),
@@ -715,9 +719,9 @@ class GameState:
                 if fall_spike.fall_var == 1:
                     fall_spike.rect.top = fall_spike.rect.top + 5
         # Player wins when he captures all jewels and enters door
-        if PlayDoor.door_list:
-            PlayDoor.door_list[0].image = PlayDoor.door_list[0].open_or_close(self.play_player.score, PlayDiamonds.diamonds_list)
-            if pygame.sprite.collide_mask(self.play_player, PlayDoor.door_list[0]):
+        if self.play_door:
+            self.play_door.image = self.play_door.open_or_close(self.play_player.score, PlayDiamonds.diamonds_list)
+            if pygame.sprite.collide_mask(self.play_player, self.play_door):
                 if self.play_player.score == len(PlayDiamonds.diamonds_list):
                     print("You Win!")
                     self.switch_to_edit_mode()
@@ -810,10 +814,11 @@ def get_dict_rect_positions(game_state):
     player_position = []
     if game_state.placed_player is not None:
         player_position = [game_state.placed_player.rect.topleft]
+    if game_state.placed_door is not None:
+        door_position = [game_state.placed_door.rect.topleft]
 
     # Dictionary for all other objects except player
     total_placed_list = {
-        'door': PlacedDoor.door_list,
         'wall': PlacedWall.wall_list,
         'flyer': PlacedFlyer.flyer_list,
         'reverse_wall': PlacedReverseWall.reverse_wall_list,
@@ -826,7 +831,8 @@ def get_dict_rect_positions(game_state):
     }
 
     # Initialize the dictionary for storing object positions
-    get_rect_for_all_obj = {'player': player_position}
+    get_rect_for_all_obj = {'player': player_position,
+                            'door': door_position}
 
     # Loop through all lists of placed objects (except player)
     for item_key, item_list in total_placed_list.items():
@@ -838,18 +844,19 @@ def get_dict_rect_positions(game_state):
 def remove_all_placed(game_state):
     for spr_list in [PlacedWall.wall_list, PlacedFlyer.flyer_list,
                      PlacedReverseWall.reverse_wall_list, PlacedSpring.spring_list, PlacedSmilyRobot.smily_robot_list,
-                     PlacedDoor.door_list, PlacedDiamonds.diamonds_list, PlacedStickyBlock.sticky_block_list,
+                     PlacedDiamonds.diamonds_list, PlacedStickyBlock.sticky_block_list,
                      PlacedFallSpikes.fall_spikes_list, PlacedStandSpikes.stand_spikes_list]:
         for obj in spr_list:
             obj.kill()
     game_state.placed_player.kill()
     game_state.placed_player = None
+    game_state.placed_door.kill()
+    game_state.placed_door = None
     PlacedWall.wall_list = []
     PlacedFlyer.flyer_list = []
     PlacedReverseWall.reverse_wall_list = []
     PlacedSpring.spring_list = []
     PlacedSmilyRobot.smily_robot_list = []
-    PlacedDoor.door_list = []
     PlacedDiamonds.diamonds_list = []
     PlacedStickyBlock.sticky_block_list = []
     PlacedFallSpikes.fall_spikes_list = []
@@ -858,18 +865,20 @@ def remove_all_placed(game_state):
 def remove_all_play(game_state):
     for spr_list in [PlayWall.wall_list, PlayFlyer.flyer_list,
                      PlayReverseWall.reverse_wall_list, PlaySpring.spring_list, PlaySmilyRobot.smily_robot_list,
-                     PlayDoor.door_list, PlayDiamonds.diamonds_list, PlayStickyBlock.sticky_block_list,
+                     PlayDiamonds.diamonds_list, PlayStickyBlock.sticky_block_list,
                      PlayFallSpikes.fall_spikes_list, PlayStandSpikes.stand_spikes_list]:
         for obj in spr_list:
             obj.kill()
     game_state.play_player.kill()
     game_state.play_player = None
+    if game_state.play_door:
+        game_state.play_door.kill()
+        game_state.play_door = None
     PlayWall.wall_list = []
     PlayFlyer.flyer_list = []
     PlayReverseWall.reverse_wall_list = []
     PlaySpring.spring_list = []
     PlaySmilyRobot.smily_robot_list = []
-    PlayDoor.door_list = []
     PlayDiamonds.diamonds_list = []
     PlayStickyBlock.sticky_block_list = []
     PlayFallSpikes.fall_spikes_list = []
@@ -878,11 +887,13 @@ def remove_all_play(game_state):
 def restart_level(game_state):
     for spr_list in [PlayWall.wall_list, PlayFlyer.flyer_list,
                      PlayReverseWall.reverse_wall_list, PlaySpring.spring_list, PlaySmilyRobot.smily_robot_list,
-                     PlayDoor.door_list, PlayDiamonds.diamonds_list, PlayStickyBlock.sticky_block_list,
+                     PlayDiamonds.diamonds_list, PlayStickyBlock.sticky_block_list,
                      PlayFallSpikes.fall_spikes_list, PlayStandSpikes.stand_spikes_list]:
         for obj in spr_list:
             obj.restart()
     game_state.play_player.restart()
+    if game_state.play_door:
+        game_state.play_door.restart()
 
 def main():
     # Tk box for color
