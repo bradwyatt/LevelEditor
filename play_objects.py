@@ -1,7 +1,7 @@
 from base_objects import PlayObject
 import pygame
 import random
-from utils import SCREEN_WIDTH
+from utils import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class PlayWall(PlayObject):
     wall_list = []
@@ -98,118 +98,79 @@ class PlayDoor(PlayObject):
 class PlaySmilyRobot(PlayObject):
     smily_robot_list = []
     SPEED = 2
-    OUT_OF_PLAY_TOPLEFT = (0, -100)
+    GRAVITY = 0.25
+    OUT_OF_PLAY_TOPLEFT = (-100, SCREEN_HEIGHT+100)
+
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_smily_robot"])
         self.pos = pos
         self.rect.topleft = self.pos
         self.images = images
-        self.left_speed = PlaySmilyRobot.SPEED*-1
-        self.right_speed = PlaySmilyRobot.SPEED
-        self.right_or_left = random.choice([self.left_speed, self.right_speed])
+        self.speed_x = self.SPEED * random.choice([-1, 1])
         self.animatetimer = 0
         self.speed_y = 0
-        self.jumps_left = 1
-        self.wall_hit_list = []
-        self.stickyblock_hit_list = []
+
     def update(self):
-        if self.rect.topleft != PlaySmilyRobot.OUT_OF_PLAY_TOPLEFT: # This is its out of play location
-            self.animate()
-            self.calc_grav()
-            if PlayWall.wall_list is None:
-                self.wall_hit_list = []
-            else:
-                self.wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
-            for wall in self.wall_hit_list:
-                if(self.rect.right-wall.rect.left < 5 and
-                   self.right_or_left == 2): # Robot moves right and collides into wall
-                    self.rect.right = wall.rect.left
-                    self.right_or_left = -2
-                elif(wall.rect.right-self.rect.left < 5 and
-                     self.right_or_left == -2): # Robot moves left and collides into wall
-                    self.rect.left = wall.rect.right
-                    self.right_or_left = 2
-            if PlayStickyBlock.sticky_block_list is None:
-                self.stickyblock_hit_list = []
-            else:
-                self.stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
-            for stickyblock in self.stickyblock_hit_list:
-                if(self.rect.right-stickyblock.rect.left < 5 and
-                   self.right_or_left == 2): # Robot moves right and collides into wall
-                    self.rect.right = stickyblock.rect.left
-                    self.right_or_left = -2
-                elif(stickyblock.rect.right-self.rect.left < 5 and
-                     self.right_or_left == -2): # Robot moves left and collides into wall
-                    self.rect.left = stickyblock.rect.right
-                    self.right_or_left = 2
-            self.rect.y += self.speed_y
-            if PlayWall.wall_list is None:
-                self.wall_hit_list = []
-            else:
-                self.wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
-            for wall in self.wall_hit_list:
-                # Reset our position based on the top/bottom of the object.
-                if self.speed_y > 0:
-                    self.rect.bottom = wall.rect.top # On top of the wall
-                elif self.speed_y < 0:
-                    self.rect.top = wall.rect.bottom # Below the wall
-                # Stop our vertical movement
-                self.speed_y = 0
-            if PlayStickyBlock.sticky_block_list is None:
-                self.stickyblock_hit_list = []
-            else:
-                self.stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
-            for stickyblock in self.stickyblock_hit_list:
-                # Reset our position based on the top/bottom of the object.
-                if self.speed_y > 0:
-                    self.rect.bottom = stickyblock.rect.top # On top of the wall
-                elif self.speed_y < 0:
-                    self.rect.top = stickyblock.rect.bottom # Below the wall
-                # Stop our vertical movement
-                self.speed_y = 0
-            self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
-            if PlayReverseWall.reverse_wall_list:
-                for reverse_wall in PlayReverseWall.reverse_wall_list:
-                    if self.rect.colliderect(reverse_wall.rect):
-                        self.right_or_left *= -1
-            if PlayWall.wall_list is None:
-                self.wall_hit_list = []
-            else:
-                self.wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
-            for wall in self.wall_hit_list:
-                if self.speed_y > 0:
-                    self.rect.bottom = wall.rect.top # On top of the wall
-                    self.jumps_left = 2
-            if PlayStickyBlock.sticky_block_list is None:
-                self.stickyblock_hit_list = []
-            else:
-                self.stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
-            for stickyblock in self.stickyblock_hit_list:
-                if self.speed_y > 0:
-                    self.rect.bottom = stickyblock.rect.top # On top of the wall
-                    self.jumps_left = 2
-    def destroy(self):
-        #PlaySmilyRobot.smily_robot_list.remove(self)
-        self.kill()
+        self.calc_grav()  # Apply gravity
+        self.animate()
+        self.handle_movement()
+        self.check_collisions()
+        
     def restart(self):
         self.rect.topleft = self.pos
-        self.speed_y = 0
-        self.right_or_left = random.choice([-2, 2])
+        self.speed_x = self.SPEED * random.choice([-1, 1])
+
+    def handle_movement(self):
+        # Move horizontally with boundary checking
+        self.rect.x += self.speed_x
+        if self.rect.left <= 0 or self.rect.right >= SCREEN_WIDTH:
+            self.speed_x *= -1  # Change direction if hitting screen bounds
+
+    def check_collisions(self):
+        block_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list + PlayStickyBlock.sticky_block_list, False)
+        for block in block_hit_list:
+            # Assuming horizontal collisions should reverse direction
+            if self.rect.bottom > block.rect.top and self.rect.top < block.rect.bottom:
+                self.speed_x *= -1  # Reverse direction
+                # Optional: Adjust the robot's position slightly to prevent sticking
+                if self.speed_x > 0:
+                    self.rect.left = block.rect.right
+                else:
+                    self.rect.right = block.rect.left
+            # Assuming vertical collisions stop the robot's downward movement
+            else:
+                self.speed_y = 0
+                if self.rect.centery < block.rect.centery:
+                    self.rect.bottom = block.rect.top
+                else:
+                    self.rect.top = block.rect.bottom
+
+        # Handle reverse wall logic
+        reverse_wall_hit_list = pygame.sprite.spritecollide(self, PlayReverseWall.reverse_wall_list, False)
+        for reverse_wall in reverse_wall_hit_list:
+            self.speed_x *= -1  # Change direction
+
+    def calc_grav(self):
+        if self.rect.top < SCREEN_HEIGHT:
+            self.speed_y += self.GRAVITY
+        else:
+            self.speed_y = 0
+            self.rect.topleft = self.OUT_OF_PLAY_TOPLEFT
+        # Apply vertical movement
+        self.rect.y += self.speed_y
+
     def animate(self):
-        # Two different pictures to animate that makes it look like it's moving
+        # Animation logic remains the same
         self.animatetimer += 1
         if self.animatetimer > 5:
             self.image = self.images["spr_smily_robot_2"]
         if self.animatetimer > 10:
             self.image = self.images["spr_smily_robot"]
             self.animatetimer = 0
-    def calc_grav(self):
-        if self.speed_y == 0:
-            self.speed_y = 1
-        else:
-            self.speed_y += .25
+            
     def add_to_class_list(self):
         PlaySmilyRobot.smily_robot_list.append(self)
+
     def remove_from_class_list(self):
         PlaySmilyRobot.smily_robot_list.remove(self)
 
@@ -218,9 +179,7 @@ class PlayStickyBlock(PlayObject):
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_sticky_block"])
         self.pos = pos
-        self.rect.topleft = self.pos
-    def restart(self):
-        self.rect.topleft = self.pos    
+        self.rect.topleft = self.pos 
     def add_to_class_list(self):
         PlayStickyBlock.sticky_block_list.append(self)
     def remove_from_class_list(self):
@@ -357,21 +316,22 @@ class PlayPlayer(PlayObject):
             self.sounds["snd_propeller"].stop()
             self.speed_y += self.GRAVITY
     def on_ground(self):
-        # Temporarily increase the Y position to check for a collision below the player
-        self.rect.y += 1
+        self.rect.y += 1  # Temporarily adjust position to check for collisions below
         wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
         stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
-        self.rect.y -= 1  # Reset Y position to its original value
-
-        # If colliding with anything below, consider the player to be on the ground
-        return bool(wall_hit_list or stickyblock_hit_list)
+        self.rect.y -= 1  # Reset position
+    
+        on_ground = bool(wall_hit_list or stickyblock_hit_list)
+        on_sticky = bool(stickyblock_hit_list)
+        return on_ground, on_sticky
     def jump(self):
-        if self.on_ground():
-            # Perform the first jump if on the ground.
+        on_ground, on_sticky = self.on_ground()
+        if on_ground and not on_sticky:
+            # Perform the first jump if on the ground and not on a sticky block.
             self.speed_y = self.JUMP_SPEED
             self.jumps_left = 1  # Set to allow for the propeller jump next.
             self.animate_jump()
-        elif not self.on_ground() and self.jumps_left >= 1:
+        elif not on_ground and self.jumps_left >= 1:
             # Allows for a propeller jump if in the air and haven't used the propeller jump yet.
             self.speed_y = self.DOUBLE_JUMP_SPEED
             self.propeller = 1
