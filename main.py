@@ -287,15 +287,16 @@ class StartBlankBox(pygame.sprite.Sprite):
 class PlayEditSwitchButton(pygame.sprite.Sprite):
     def __init__(self, pos, GAME_MODE_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
+        self.images = images
         self.image = images["spr_play_button"]
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         GAME_MODE_SPRITES.add(self)
     def game_mode_button(self, game_mode):
         if game_mode == 0:
-            self.image = IMAGES["spr_play_button"]
+            self.image = self.images["spr_play_button"]
         elif game_mode == 1:
-            self.image = IMAGES["spr_stop_button"]
+            self.image = self.images["spr_stop_button"]
         return self.image
 
 class MusicPlayer():
@@ -387,8 +388,10 @@ class GameState:
         self.game_mode = GameState.EDIT_MODE
         self.mouse_pos = (0, 0)
         self.init_ui_elements()
+        self.jump_key_released = True 
         
         self.placed_player = None
+        self.play_player = None
         self.is_paused = False
 
     def update_mouse_pos(self):
@@ -412,6 +415,7 @@ class GameState:
         self.start_sprites.add(self.rotate_button)
             
     def handle_events(self):
+        self.handle_player_input()  # Process player inputs first
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -609,20 +613,6 @@ class GameState:
                         remove_all_placed(self)
                 if self.rotate_button.rect.collidepoint(self.mouse_pos):
                     self.start.stand_spikes.rotate -= 90
-                    
-            #################
-            # KEYBOARD EVENTS (PLAYER)
-            #################
-            if self.game_mode == self.PLAY_MODE:
-                if event.type == pygame.KEYUP:
-                    if event.key == K_LEFT and self.play_player.speed_x < 0:
-                        self.play_player.stop()
-                    if event.key == pygame.K_RIGHT and self.play_player.speed_x > 0:
-                        self.play_player.stop()
-                if event.type == KEYDOWN:
-                    if event.key == pygame.K_UP:
-                        if self.play_player.jumps_left > 0:
-                            self.play_player.jump()
     def edit_mode_function(self):
         if self.dragging.player and self.placed_player is None:
             self.start.blank_box.rect.topleft = self.START_POSITIONS['player'] # Replaces in Menu
@@ -698,20 +688,6 @@ class GameState:
         else:
             self.start.stand_spikes.rect.topleft = self.START_POSITIONS['stand_spikes']       
     def play_mode_function(self):
-        # Avoid player going off screen
-        keys_pressed = pygame.key.get_pressed()
-        if keys_pressed[K_LEFT]:
-            self.play_player.last_pressed_r = 0
-            if self.play_player.rect.left > 0:
-                self.play_player.go_left()
-            else:
-                self.play_player.stop()
-        if keys_pressed[K_RIGHT]:
-            self.play_player.last_pressed_r = 1
-            if self.play_player.rect.right < SCREEN_WIDTH:
-                self.play_player.go_right()
-            else:
-                self.play_player.stop()
         # Dead
         if self.play_player.rect.top > SCREEN_HEIGHT and self.play_player.speed_y >= 0:
             restart_level(self)
@@ -811,6 +787,23 @@ class GameState:
         self.start.sticky_block.rect.topleft = self.START_POSITIONS['sticky_block']
         self.start.fall_spikes.rect.topleft = self.START_POSITIONS['fall_spikes']
         self.start.stand_spikes.rect.topleft = self.START_POSITIONS['stand_spikes']
+    def handle_player_input(self):
+        if self.play_player and not self.is_paused:
+            keys_pressed = pygame.key.get_pressed()
+
+            if keys_pressed[pygame.K_UP] and self.jump_key_released:
+                self.play_player.jump()
+                self.jump_key_released = False  # Key has been pressed, not released
+
+            elif not keys_pressed[pygame.K_UP]:
+                self.jump_key_released = True  # Key has been released
+
+            if keys_pressed[pygame.K_LEFT]:
+                self.play_player.go_left()
+            elif keys_pressed[pygame.K_RIGHT]:
+                self.play_player.go_right()
+            else:
+                self.play_player.stop()
 
 # Returns the tuples of each objects' positions within all classes
 def get_dict_rect_positions(game_state):

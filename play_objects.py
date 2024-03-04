@@ -283,6 +283,14 @@ class PlaySpring(PlayObject):
         PlaySpring.spring_list.remove(self)
 
 class PlayPlayer(PlayObject):
+    # Constants for physics and gameplay adjustments
+    GRAVITY = 0.25
+    PROP_GRAVITY = 0.01
+    MAX_PROP_SPEED = -2
+    PROP_ACCELERATION = 0.25
+    JUMP_SPEED = -7
+    DOUBLE_JUMP_SPEED = -2
+    MOVE_SPEED = 4
     def __init__(self, pos, play_sprites, images, sounds):
         pygame.sprite.Sprite.__init__(self)
         super().__init__(pos, play_sprites, images["spr_player"])
@@ -290,14 +298,16 @@ class PlayPlayer(PlayObject):
         self.sounds = sounds
         self.pos = pos
         self.speed_x, self.speed_y = 0, 0
-        self.jumps_left = 1
+        self.jumps_left = 2
         self.propeller, self.playerproptimer = 0, 0
         self.last_pressed_r = 1
         self.score = 0
         self.death_count = 0
         self.wall_hit_list = []
         self.stickyblock_hit_list = []
+        self.jump_counter = 0
     def update(self):
+        #print("jumps_left: ", str(self.jumps_left))
         self.calc_grav()
         self.rect.x += self.speed_x
         
@@ -342,41 +352,62 @@ class PlayPlayer(PlayObject):
             self.propeller = 0
         self.animate_images()
     def go_left(self):
-        self.speed_x = -4
+        self.speed_x = -self.MOVE_SPEED
     def go_right(self):
-        self.speed_x = 4
+        self.speed_x = self.MOVE_SPEED
     def stop(self):
         self.speed_x = 0
     def calc_grav(self):
         if self.speed_y == 0:
             self.speed_y = 1
-        elif self.propeller == 1:
-            self.speed_y += .01
-            if self.speed_y >= -2:
+        elif self.propeller:
+            self.speed_y += self.PROP_GRAVITY
+            if self.speed_y >= self.MAX_PROP_SPEED:
                 self.sounds["snd_propeller"].play()
             if self.speed_y > -1.5:
                 self.propeller = 0
-                self.speed_y += .25
+                self.speed_y += self.PROP_ACCELERATION
         else:
             self.sounds["snd_propeller"].stop()
-            self.speed_y += .25
+            self.speed_y += self.GRAVITY
+    def on_ground(self):
+        # Temporarily increase the Y position to check for a collision below the player
+        self.rect.y += 1
+        wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
+        stickyblock_hit_list = pygame.sprite.spritecollide(self, PlayStickyBlock.sticky_block_list, False)
+        self.rect.y -= 1  # Reset Y position to its original value
+
+        # If colliding with anything below, consider the player to be on the ground
+        return bool(wall_hit_list or stickyblock_hit_list)
     def jump(self):
-        # For moving platforms that go up and down...
-        self.speed_y += 2
-        self.speed_y -= 2
-        # If there is a platform below you, you are able to jump
-        if self.wall_hit_list and self.jumps_left == 2: #Big First Jump
-            self.speed_y = -7
-            self.jumps_left = 1
-        elif self.stickyblock_hit_list and self.jumps_left >= 1: # Sticky --> No Jump
-            self.jumps_left = 0
-        elif not self.wall_hit_list and self.jumps_left >= 1: # Double Jump when not on platform
-            self.speed_y = -2
+        self.jump_counter += 1
+        print("jump counter: " + str(self.jump_counter))
+        # Check if the player is on the ground for the first jump.
+        if self.on_ground():
+            # Perform the first jump.
+            self.speed_y = self.JUMP_SPEED  # Apply the initial jump speed.
+            self.jumps_left -= 1  # Decrement jumps_left, indicating a jump has been used.
+            self.animate_jump()  # Animate the initial jump.
+            print("first jump")
+        elif not self.on_ground() and self.jumps_left == 1:
+            # Only allow the second jump if we're not on the ground and a jump is left.
+            self.speed_y = self.DOUBLE_JUMP_SPEED
+            self.propeller = 1
+            self.jumps_left -= 1  # Decrement jumps_left, now to 0, indicating no jumps left.
+            self.animate_jump()  # Animate the propeller jump.
+            print("second jump")
+
+    def can_jump(self):
+        return self.jumps_left > 0
+
+    def perform_jump(self):
+        if self.wall_hit_list:  # On a platform
+            self.speed_y = self.JUMP_SPEED
+            self.jumps_left -= 1
+        elif not self.wall_hit_list and self.jumps_left == 1:  # Mid-air jump
+            self.speed_y = self.DOUBLE_JUMP_SPEED
             self.propeller = 1
             self.jumps_left = 0
-        elif not self.wall_hit_list: # If Player is not on top of wall, he only has propeller left
-            if self.jumps_left == 2:
-                self.jumps_left = 1
     def animate_images(self):
         if self.propeller == 1:
             self.playerproptimer += 1
@@ -397,6 +428,31 @@ class PlayPlayer(PlayObject):
                 self.image = self.images["spr_player"]
             else:
                 self.image = pygame.transform.flip(self.images["spr_player"], 1, 0)
+    def animate_jump(self):
+        # Check if the propeller is to be used, indicating a second jump in a double jump
+        if self.propeller:
+            # Reset or initialize the propeller animation timer
+            self.playerproptimer = 0
+    
+            # Play the propeller sound if it exists
+            if "snd_propeller" in self.sounds:
+                self.sounds["snd_propeller"].play()
+    
+            # The actual propeller animation logic will continue to be handled by `animate_images`
+            # so no additional logic is needed here to change the image directly.
+    
+        else:
+            # For a regular jump (first jump in the double jump sequence or a single jump),
+            # you might want to reset the player image or set any initial jump animation
+            # This is more relevant if you have a specific animation for the start of a jump.
+            self.image = self.images["spr_player"]
+            # If there's a jump sound, you could play it here as well
+            if "snd_jump" in self.sounds:
+                self.sounds["snd_jump"].play()
+    
+        # Note: The continuous animation of the propeller (if applicable) and resetting back to the normal
+        # state after the propeller animation ends are handled within the `animate_images` method,
+        # which should be called in your game loop's update phase.
     def restart(self):
         # Game Reset
         self.jumps_left = 1
