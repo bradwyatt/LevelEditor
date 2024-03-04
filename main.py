@@ -374,6 +374,15 @@ class GameState:
                 'spring': (255, 12), 'flyer': (130, 12), 'smily_robot': (162, 12),
                 'door': (195, 2), 'diamonds': (225, 14), 'sticky_block': (70, 12),
                 'fall_spikes': (290, 12), 'stand_spikes': (320, 12)}
+    UI_ELEMENTS_POSITIONS = {'play_edit_switch_button': (SCREEN_WIDTH-50, 8),
+                             'clear_button': (SCREEN_WIDTH-115, 10),
+                             'info_button': (SCREEN_WIDTH-320, 10),
+                             'grid_button': (SCREEN_WIDTH-150, 10),
+                             'restart_button': (SCREEN_WIDTH-175, 10),
+                             'color_button': (SCREEN_WIDTH-195, 10),
+                             'save_file_button': (SCREEN_WIDTH-230, 10),
+                             'load_file_button': (SCREEN_WIDTH-265, 10),
+                             'rotate_button': (SCREEN_WIDTH-590, 7)}
     TOP_UI_BOUNDARY_Y_HEIGHT = 96
     GRID_SPACING = 24
     def __init__(self):
@@ -401,21 +410,23 @@ class GameState:
     def update_mouse_pos(self):
         self.mouse_pos = pygame.mouse.get_pos()
     def init_ui_elements(self):
-        self.play_edit_switch_button = PlayEditSwitchButton((SCREEN_WIDTH-50, 8), self.game_mode_sprites, IMAGES)
-        self.clear_button = ClearButton((SCREEN_WIDTH-115, 10), IMAGES)
+        self.play_edit_switch_button = PlayEditSwitchButton(self.UI_ELEMENTS_POSITIONS['play_edit_switch_button'],
+                                                            self.game_mode_sprites,
+                                                            IMAGES)
+        self.clear_button = ClearButton(self.UI_ELEMENTS_POSITIONS['clear_button'], IMAGES)
         self.start_sprites.add(self.clear_button)
-        self.info_button = InfoButton((SCREEN_WIDTH-320, 10), IMAGES)
+        self.info_button = InfoButton(self.UI_ELEMENTS_POSITIONS['info_button'], IMAGES)
         self.start_sprites.add(self.info_button)
-        self.grid_button = GridButton((SCREEN_WIDTH-150, 10), IMAGES)
+        self.grid_button = GridButton(self.UI_ELEMENTS_POSITIONS['grid_button'], IMAGES)
         self.start_sprites.add(self.grid_button)
-        self.restart_button = RestartButton((SCREEN_WIDTH-175, 10), self.play_sprites, IMAGES)
-        self.color_button = ColorButton((SCREEN_WIDTH-195, 10), IMAGES)
+        self.restart_button = RestartButton(self.UI_ELEMENTS_POSITIONS['restart_button'], self.play_sprites, IMAGES)
+        self.color_button = ColorButton(self.UI_ELEMENTS_POSITIONS['color_button'], IMAGES)
         self.start_sprites.add(self.color_button)
-        self.save_file_button = SaveFileButton((SCREEN_WIDTH-230, 10), IMAGES)
+        self.save_file_button = SaveFileButton(self.UI_ELEMENTS_POSITIONS['save_file_button'], IMAGES)
         self.start_sprites.add(self.save_file_button)
-        self.load_file_button = LoadFileButton((SCREEN_WIDTH-265, 10), IMAGES)
+        self.load_file_button = LoadFileButton(self.UI_ELEMENTS_POSITIONS['load_file_button'], IMAGES)
         self.start_sprites.add(self.load_file_button)
-        self.rotate_button = RotateButton((SCREEN_WIDTH-590, 7), IMAGES)
+        self.rotate_button = RotateButton(self.UI_ELEMENTS_POSITIONS['rotate_button'], IMAGES)
         self.start_sprites.add(self.rotate_button)
             
     def handle_events(self):
