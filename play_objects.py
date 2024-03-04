@@ -127,28 +127,41 @@ class PlaySmilyRobot(PlayObject):
             self.speed_x *= -1  # Change direction if hitting screen bounds
 
     def check_collisions(self):
-        block_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list + PlayStickyBlock.sticky_block_list, False)
-        for block in block_hit_list:
-            # Assuming horizontal collisions should reverse direction
-            if self.rect.bottom > block.rect.top and self.rect.top < block.rect.bottom:
+        # Separate checks for vertical (floor/ceiling) and horizontal (walls) collisions
+        vertical_blocks = pygame.sprite.spritecollide(self, PlayWall.wall_list + PlayStickyBlock.sticky_block_list, False)
+        horizontal_blocks = [block for block in vertical_blocks if self.rect.bottom > block.rect.top]
+    
+        # Handle Vertical Collisions (landing or hitting ceiling)
+        for block in vertical_blocks:
+            if self.speed_y > 0 and self.rect.bottom >= block.rect.top:
+                self.rect.bottom = block.rect.top
+                self.speed_y = 0  # Stop vertical movement
+                break  # Assuming only one block can be landed on at a time
+    
+        # Handle Horizontal Collisions (hitting walls)
+        for block in horizontal_blocks:
+            # Adjust the condition to check the direction of the robot relative to the block
+            if self.rect.right - self.speed_x <= block.rect.left < self.rect.right or \
+               self.rect.left - self.speed_x >= block.rect.right > self.rect.left:
                 self.speed_x *= -1  # Reverse direction
-                # Optional: Adjust the robot's position slightly to prevent sticking
-                if self.speed_x > 0:
-                    self.rect.left = block.rect.right
-                else:
-                    self.rect.right = block.rect.left
-            # Assuming vertical collisions stop the robot's downward movement
-            else:
-                self.speed_y = 0
-                if self.rect.centery < block.rect.centery:
-                    self.rect.bottom = block.rect.top
-                else:
-                    self.rect.top = block.rect.bottom
-
-        # Handle reverse wall logic
+                break  # Handle one horizontal collision at a time
+    
+        # Handle reverse wall logic with slight adjustment upon collision
         reverse_wall_hit_list = pygame.sprite.spritecollide(self, PlayReverseWall.reverse_wall_list, False)
         for reverse_wall in reverse_wall_hit_list:
             self.speed_x *= -1  # Change direction
+            # Move the smily robot slightly away from the reverse wall to prevent sticking
+            if self.speed_x > 0:  # If now moving right, ensure it's to the left of the reverse wall
+                self.rect.left = reverse_wall.rect.right + 1
+            else:  # If now moving left, ensure it's to the right of the reverse wall
+                self.rect.right = reverse_wall.rect.left - 1
+    
+        # Apply horizontal movement
+        self.rect.x += self.speed_x
+
+
+
+
 
     def calc_grav(self):
         if self.rect.top < SCREEN_HEIGHT:
