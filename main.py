@@ -756,26 +756,24 @@ class GameState:
                 play_diamonds.image = IMAGES["spr_blank_box"]
         for spring in PlaySpring.spring_list:
             if pygame.sprite.collide_mask(self.play_player, spring):
-                if self.play_player.rect.bottom <= spring.rect.top+20 and self.play_player.speed_y >= 10: #big jumps
+                # Check if the collision is primarily on top of the spring
+                if self.play_player.rect.bottom <= spring.rect.top + 20 and self.play_player.speed_y >= 0:
+                    # This is a top collision, trigger the high jump
                     SOUNDS["snd_spring"].play()
-                    self.play_player.propeller = 0 
-                    self.play_player.rect.bottom = spring.rect.top
-                    self.play_player.speed_y = -10
-                    self.play_player.jumps_left = 1 #Allows propeller in air
-                elif self.play_player.rect.bottom <= spring.rect.top+10 and self.play_player.speed_y >= 0:
-                    SOUNDS["snd_spring"].play()
-                    self.play_player.propeller = 0 #Fixes propeller bug
-                    self.play_player.rect.bottom = spring.rect.top
-                    self.play_player.speed_y = -10
-                    self.play_player.jumps_left = 1 #Allows propeller in air
-                elif self.play_player.speed_x > 0:
-                    self.play_player.rect.right = spring.rect.left
-                elif self.play_player.speed_x < 0:
-                    self.play_player.rect.left = spring.rect.right
-                elif self.play_player.speed_y < 0:
-                    self.play_player.speed_y = 0
                     self.play_player.propeller = 0
-                    self.play_player.rect.top = spring.rect.bottom #Below the wall
+                    self.play_player.rect.bottom = spring.rect.top
+                    self.play_player.speed_y = -10  # High jump
+                    self.play_player.jumps_left = 1  # Allows for propeller in air
+                else:
+                    # Side collision handling
+                    # Collision is primarily horizontal
+                    if self.play_player.rect.centerx < spring.rect.centerx:
+                        # Player is on the left side of the spring
+                        self.play_player.rect.right = spring.rect.left
+                    else:
+                        # Player is on the right side of the spring
+                        self.play_player.rect.left = spring.rect.right
+
     def initiate_room(self):
         self.start.player.rect.topleft = self.START_POSITIONS['player']
         self.start.wall.rect.topleft = self.START_POSITIONS['wall']
