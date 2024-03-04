@@ -380,22 +380,17 @@ class PlayPlayer(PlayObject):
         # If colliding with anything below, consider the player to be on the ground
         return bool(wall_hit_list or stickyblock_hit_list)
     def jump(self):
-        self.jump_counter += 1
-        print("jump counter: " + str(self.jump_counter))
-        # Check if the player is on the ground for the first jump.
         if self.on_ground():
-            # Perform the first jump.
-            self.speed_y = self.JUMP_SPEED  # Apply the initial jump speed.
-            self.jumps_left -= 1  # Decrement jumps_left, indicating a jump has been used.
-            self.animate_jump()  # Animate the initial jump.
-            print("first jump")
-        elif not self.on_ground() and self.jumps_left == 1:
-            # Only allow the second jump if we're not on the ground and a jump is left.
+            # Perform the first jump if on the ground.
+            self.speed_y = self.JUMP_SPEED
+            self.jumps_left = 1  # Set to allow for the propeller jump next.
+            self.animate_jump()
+        elif not self.on_ground() and self.jumps_left >= 1:
+            # Allows for a propeller jump if in the air and haven't used the propeller jump yet.
             self.speed_y = self.DOUBLE_JUMP_SPEED
             self.propeller = 1
-            self.jumps_left -= 1  # Decrement jumps_left, now to 0, indicating no jumps left.
-            self.animate_jump()  # Animate the propeller jump.
-            print("second jump")
+            self.jumps_left = 0  # No more jumps left after this.
+            self.animate_jump()
 
     def can_jump(self):
         return self.jumps_left > 0
