@@ -24,7 +24,6 @@ class PlayReverseWall(PlayObject):
         image = pygame.Surface((24, 24), pygame.SRCALPHA)  # Adjust dimensions as necessary
         image.fill((0, 0, 0, 0))  # Completely transparent
         super().__init__(pos, play_sprites, image)
-        self.add_to_class_list()
 
     def add_to_class_list(self):
         PlayReverseWall.reverse_wall_list.append(self)
@@ -41,7 +40,6 @@ class PlayFlyer(PlayObject):
         self.left_speed = PlayFlyer.SPEED*-1
         self.right_speed = PlayFlyer.SPEED
         self.right_or_left = random.choice([self.left_speed, self.right_speed])
-        self.add_to_class_list()
         
     def update(self):
         self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
@@ -76,7 +74,6 @@ class PlayDiamonds(PlayObject):
         super().__init__(pos, play_sprites, images["spr_diamonds"])
         self.images = images
         self.pos = pos
-        self.add_to_class_list()
     def restart(self):
         self.rect.topleft = self.pos
         self.image = self.images["spr_diamonds"]
@@ -92,10 +89,8 @@ class PlayDoor(PlayObject):
         self.pos = pos
         self.images = images
         play_sprites.add(self)
-        self.add_to_class_list()
     def open_or_close(self, score, diamonds_list):
         if score == len(diamonds_list):
-            print("HOORAY!")
             return self.images["spr_door_open"]
         return self.images["spr_door_closed"]
     def restart(self):
@@ -122,7 +117,6 @@ class PlaySmilyRobot(PlayObject):
         self.jumps_left = 1
         self.wall_hit_list = []
         self.stickyblock_hit_list = []
-        self.add_to_class_list()
     def update(self):
         if self.rect.topleft != PlaySmilyRobot.OUT_OF_PLAY_TOPLEFT: # This is its out of play location
             self.animate()
@@ -230,7 +224,6 @@ class PlayStickyBlock(PlayObject):
         super().__init__(pos, play_sprites, images["spr_sticky_block"])
         self.pos = pos
         self.rect.topleft = self.pos
-        PlayStickyBlock.sticky_block_list.append(self)
     def restart(self):
         self.rect.topleft = self.pos    
     def add_to_class_list(self):
@@ -243,7 +236,6 @@ class PlayStandSpikes(PlayObject):
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_stand_spikes"])
         self.pos = pos
-        PlayStandSpikes.stand_spikes_list.append(self)
         self.fall_var = 0
     def restart(self):
         self.rect.topleft = self.pos
@@ -257,7 +249,6 @@ class PlayFallSpikes(PlayObject):
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_fall_spikes"])
         self.pos = pos
-        PlayFallSpikes.fall_spikes_list.append(self)
         self.fall_var = 0
     def restart(self):
         self.rect.topleft = self.pos
@@ -274,7 +265,6 @@ class PlaySpring(PlayObject):
         super().__init__(pos, play_sprites, images["spr_spring"])
         pygame.sprite.Sprite.__init__(self)
         self.pos = pos
-        PlaySpring.spring_list.append(self)
     def restart(self):
         self.rect.topleft = self.pos
     def add_to_class_list(self):
@@ -307,7 +297,6 @@ class PlayPlayer(PlayObject):
         self.stickyblock_hit_list = []
         self.jump_counter = 0
     def update(self):
-        #print("jumps_left: ", str(self.jumps_left))
         self.calc_grav()
         self.rect.x += self.speed_x
         

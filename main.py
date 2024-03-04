@@ -293,10 +293,10 @@ class PlayEditSwitchButton(pygame.sprite.Sprite):
         self.rect.topleft = pos
         GAME_MODE_SPRITES.add(self)
     def game_mode_button(self, game_mode):
-        if game_mode == 0:
-            self.image = self.images["spr_play_button"]
-        elif game_mode == 1:
+        if game_mode == GameState.PLAY_MODE:
             self.image = self.images["spr_stop_button"]
+        elif game_mode == GameState.EDIT_MODE:
+            self.image = self.images["spr_play_button"]
         return self.image
 
 class MusicPlayer():
@@ -522,26 +522,37 @@ class GameState:
             elif event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
                 # Place object on location of mouse release
                 if self.dragging.player:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     self.placed_player = PlacedPlayer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.door:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedDoor(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.wall:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.flyer:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedFlyer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.reverse_wall:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedReverseWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.smily_robot:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedSmilyRobot(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.spring:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedSpring(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.diamonds:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedDiamonds(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.sticky_block:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedStickyBlock(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.fall_spikes:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedFallSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.dragging.stand_spikes:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                     PlacedStandSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                     
             #################
@@ -564,6 +575,7 @@ class GameState:
                         self.game_mode = self.PLAY_MODE
                         self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
                         print("Play Mode Activated")
+                        
                         #MUSIC_PLAYER = [MusicPlayer()]
                         self.play_player = PlayPlayer(self.placed_player.rect.topleft, self.play_sprites, IMAGES, SOUNDS)
                         for placed_door in PlacedDoor.door_list:
@@ -593,14 +605,7 @@ class GameState:
                 #################
                 elif(self.play_edit_switch_button.rect.collidepoint(self.mouse_pos) and self.game_mode == self.PLAY_MODE):
                     # Makes sure you are not in editing mode to enter editing mode
-                    if self.game_mode == self.PLAY_MODE:
-                        print("Editing Mode Activated")
-                        self.play_player.death_count = 0
-                        self.game_mode = self.EDIT_MODE
-                        self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
-                        remove_all_play(self)
-                        #MUSIC_PLAYER = []
-                        #MUSIC_PLAYER = [MusicPlayer()]
+                    self.switch_to_edit_mode()
                 if self.restart_button.rect.collidepoint(self.mouse_pos):
                     if self.game_mode == self.PLAY_MODE:
                         restart_level(self)
@@ -613,6 +618,15 @@ class GameState:
                         remove_all_placed(self)
                 if self.rotate_button.rect.collidepoint(self.mouse_pos):
                     self.start.stand_spikes.rotate -= 90
+    def switch_to_edit_mode(self):
+        # Makes sure you are not in editing mode to enter editing mode
+        print("Editing Mode Activated")
+        self.game_mode = self.EDIT_MODE
+        self.play_player.death_count = 0
+        self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
+        remove_all_play(self)
+        #MUSIC_PLAYER = []
+        #MUSIC_PLAYER = [MusicPlayer()]
     def edit_mode_function(self):
         if self.dragging.player and self.placed_player is None:
             self.start.blank_box.rect.topleft = self.START_POSITIONS['player'] # Replaces in Menu
@@ -686,7 +700,7 @@ class GameState:
             self.start.stand_spikes.rect.topleft = (self.mouse_pos[0]-(self.start.stand_spikes.image.get_width()/2),
                                                self.mouse_pos[1]-(self.start.stand_spikes.image.get_height()/2))
         else:
-            self.start.stand_spikes.rect.topleft = self.START_POSITIONS['stand_spikes']       
+            self.start.stand_spikes.rect.topleft = self.START_POSITIONS['stand_spikes']
     def play_mode_function(self):
         # Dead
         if self.play_player.rect.top > SCREEN_HEIGHT and self.play_player.speed_y >= 0:
@@ -706,21 +720,8 @@ class GameState:
             if pygame.sprite.collide_mask(self.play_player, PlayDoor.door_list[0]):
                 if self.play_player.score == len(PlayDiamonds.diamonds_list):
                     print("You Win!")
-                    self.play_player.death_count = 0
-                    self.game_mode = self.EDIT_MODE
-                    self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
+                    self.switch_to_edit_mode()
                     #music_player = [MusicPlayer()]
-                    self.play_player.rect.topleft = self.placed_player.rect.topleft
-                    for i in range(0, len(PlacedSmilyRobot.smily_robot_list)):
-                        PlaySmilyRobot.smily_robot_list[i].rect.topleft = PlacedSmilyRobot.smily_robot_list[i].rect.topleft
-                        PlaySmilyRobot.smily_robot_list[i].speed_y = 0
-                    for i in range(0, len(PlacedFlyer.flyer_list)):
-                        PlayFlyer.flyer_list[i].rect.topleft = PlacedFlyer.flyer_list[i].rect.topleft
-                    for play_diamonds in PlayDiamonds.diamonds_list:
-                        play_diamonds.image = IMAGES["spr_diamonds"]
-                    for i in range(0, len(PlacedFallSpikes.fall_spikes_list)):
-                        PlayFallSpikes.fall_spikes_list[i].rect.topleft = PlacedFallSpikes.fall_spikes_list[i].rect.topleft
-                        PlayFallSpikes.fall_spikes_list[i].fall_var = 0
                     
 
                 
