@@ -353,8 +353,10 @@ class PlayPlayer(PlayObject):
         self.animate_images()
     def go_left(self):
         self.speed_x = -self.MOVE_SPEED
+        self.last_pressed_r = 0  # Indicates moving left
     def go_right(self):
         self.speed_x = self.MOVE_SPEED
+        self.last_pressed_r = 1  # Indicates moving right
     def stop(self):
         self.speed_x = 0
     def calc_grav(self):
