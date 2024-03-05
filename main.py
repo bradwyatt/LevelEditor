@@ -595,7 +595,7 @@ class GameState:
             # Inside the handle_events method, find the section handling MOUSEMOTION
             elif event.type == pygame.MOUSEMOTION:
                 self.update_mouse_pos()  # Update the mouse position
-                if self.is_dragging and self.game_mode == GameState.EDIT_MODE:
+                if self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT:
                     # Assuming you have a way to determine the object type being dragged, e.g., self.dragging.object_type
                     grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT)
                     if grid_pos != self.last_placed_pos:  # Check if the mouse has moved to a new grid cell
