@@ -36,18 +36,6 @@ class PlacedDiamonds(PlacedObject):
     def remove_from_class_list(self):
         PlacedDiamonds.diamonds_list.remove(self)
         
-class PlacedDoor(PlacedObject):
-    door_list = []
-
-    def __init__(self, pos, placed_sprites, images):
-        super().__init__(pos, placed_sprites, images["spr_door_closed"])
-
-    def add_to_class_list(self):
-        PlacedDoor.door_list.append(self)
-
-    def remove_from_class_list(self):
-        PlacedDoor.door_list.remove(self)
-        
 class PlacedFlyer(PlacedObject):
     flyer_list = []
 
@@ -123,3 +111,7 @@ class PlacedStandSpikes(PlacedObject):
 class PlacedPlayer(PlacedObject):
     def __init__(self, pos, placed_sprites, images):
         super().__init__(pos, placed_sprites, images["spr_player"])
+        
+class PlacedDoor(PlacedObject):
+    def __init__(self, pos, placed_sprites, images):
+        super().__init__(pos, placed_sprites, images["spr_door_closed"])
