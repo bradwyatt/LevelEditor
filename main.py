@@ -406,6 +406,9 @@ class GameState:
         self.placed_door = None
         self.play_door = None
         self.is_paused = False
+        
+        self.is_dragging = False  # Initialize dragging state
+        self.last_placed_pos = None  # Track the last placed position to avoid duplicates
 
     def update_mouse_pos(self):
         self.mouse_pos = pygame.mouse.get_pos()
@@ -445,6 +448,14 @@ class GameState:
                     # Toggle pause state
                     self.is_paused = not self.is_paused
                     print("Pause Toggled:", self.is_paused)
+            # Update dragging state
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self.is_dragging = True
+                self.last_placed_pos = None  # Reset last placed position on new click
+            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                self.is_dragging = False
+                self.last_placed_pos = None  # Clear the last placed position when releasing the button
+
 
                     
             #################
@@ -575,12 +586,26 @@ class GameState:
             #################
             # CLICK (RELEASE)
             #################           
-            if self.game_mode == self.EDIT_MODE:
             # Right click on obj, destroy
-                if(event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[2]):   
-                    self.dragging.dragging_all_false()
-                    self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+            elif(event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[2] and self.game_mode == self.EDIT_MODE):   
+                self.dragging.dragging_all_false()
+                self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+            
+            # Inside the handle_events method, find the section handling MOUSEMOTION
+            elif event.type == pygame.MOUSEMOTION:
+                self.update_mouse_pos()  # Update the mouse position
+                if self.is_dragging and self.game_mode == GameState.EDIT_MODE:
+                    # Assuming you have a way to determine the object type being dragged, e.g., self.dragging.object_type
+                    grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT)
+                    if grid_pos != self.last_placed_pos:  # Check if the mouse has moved to a new grid cell
+                        self.last_placed_pos = grid_pos  # Update the last placed position
+                        
+                        # Example logic for placing a wall, extend this logic for other object types
+                        if self.dragging.wall:
+                            PlacedWall(grid_pos, self.placed_sprites, IMAGES)
+                            # For other objects, repeat similar checks and placement logic
+            
             if event.type == MOUSEBUTTONUP:            
                 #################
                 # PLAY BUTTON
