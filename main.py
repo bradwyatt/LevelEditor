@@ -605,9 +605,50 @@ class GameState:
                     grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, self.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT)
                     if grid_pos != self.last_placed_pos and not self.is_object_at_position(grid_pos):
                         self.last_placed_pos = grid_pos
-                        # Your object creation logic here, e.g., for a wall
-                        PlacedWall(grid_pos, self.placed_sprites, IMAGES)
                         
+                        # Handle PlacedWall
+                        if self.dragging.wall:
+                            PlacedWall(grid_pos, self.placed_sprites, IMAGES)
+                        
+                        # Handle PlacedPlayer - Ensure only one instance is placed
+                        elif self.dragging.player:
+                            # If a player has already been placed, update its position
+                            if self.placed_player is not None:
+                                self.placed_player.rect.topleft = grid_pos
+                            # If no player has been placed, create a new one
+                            else:
+                                self.placed_player = PlacedPlayer(grid_pos, self.placed_sprites, IMAGES)
+                        # You can only have one door
+                        elif self.dragging.door:
+                            if self.placed_door is not None:
+                                self.placed_door.rect.topleft = grid_pos
+                            else:
+                                self.placed_door = PlacedDoor(grid_pos, self.placed_sprites, IMAGES)
+                        # Handle PlacedFlyer - Allow multiple instances without overlap
+                        elif self.dragging.flyer:
+                            PlacedFlyer(grid_pos, self.placed_sprites, IMAGES)
+                            
+                        elif self.dragging.reverse_wall:
+                            PlacedReverseWall(grid_pos, self.placed_sprites, IMAGES)
+                        
+                        elif self.dragging.smily_robot:
+                            PlacedSmilyRobot(grid_pos, self.placed_sprites, IMAGES)
+                        
+                        elif self.dragging.spring:
+                            PlacedSpring(grid_pos, self.placed_sprites, IMAGES)
+                            
+                        elif self.dragging.diamonds:
+                            PlacedDiamonds(grid_pos, self.placed_sprites, IMAGES)
+                            
+                        elif self.dragging.sticky_block:
+                            PlacedStickyBlock(grid_pos, self.placed_sprites, IMAGES)
+                        
+                        elif self.dragging.fall_spikes:
+                            PlacedFallSpikes(grid_pos, self.placed_sprites, IMAGES)
+                            
+                        elif self.dragging.stand_spikes:
+                            PlacedStandSpikes(grid_pos, self.placed_sprites, IMAGES)
+                            
             
             if event.type == MOUSEBUTTONUP:            
                 #################
