@@ -8,7 +8,6 @@ class PlayWall(PlayObject):
 
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_wall"])
-        self.add_to_class_list()
 
     def add_to_class_list(self):
         PlayWall.wall_list.append(self)
@@ -87,7 +86,6 @@ class PlayDoor(PlayObject):
         super().__init__(pos, play_sprites, images["spr_door_closed"])
         self.pos = pos
         self.images = images
-        play_sprites.add(self)
     def open_or_close(self, score, diamonds_list):
         if score == len(diamonds_list):
             return self.images["spr_door_open"]

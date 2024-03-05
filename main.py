@@ -412,6 +412,12 @@ class GameState:
 
     def update_mouse_pos(self):
         self.mouse_pos = pygame.mouse.get_pos()
+        
+    def is_object_at_position(self, position):
+        for sprite in self.placed_sprites:
+            if sprite.rect.topleft == position:
+                return True
+        return False
     def init_ui_elements(self):
         self.play_edit_switch_button = PlayEditSwitchButton(self.UI_ELEMENTS_POSITIONS['play_edit_switch_button'],
                                                             self.game_mode_sprites,
@@ -426,7 +432,6 @@ class GameState:
         self.color_button = ColorButton(self.UI_ELEMENTS_POSITIONS['color_button'], IMAGES)
         self.start_sprites.add(self.color_button)
         if not MOBILE_ACCESSIBILITY_MODE:
-            print("TEST: " + str(MOBILE_ACCESSIBILITY_MODE))
             self.save_file_button = SaveFileButton(self.UI_ELEMENTS_POSITIONS['save_file_button'], IMAGES)
             self.start_sprites.add(self.save_file_button)
             self.load_file_button = LoadFileButton(self.UI_ELEMENTS_POSITIONS['load_file_button'], IMAGES)
@@ -436,6 +441,7 @@ class GameState:
             
     def handle_events(self):
         self.handle_player_input()  # Process player inputs first
+        #print("Number of walls: ", str(PlacedWall.wall_list))
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -592,19 +598,16 @@ class GameState:
                 self.start = restart_start_objects(self.start, self.START_POSITIONS)
                 remove_placed_object(self.placed_sprites, self.mouse_pos, self)
             
-            # Inside the handle_events method, find the section handling MOUSEMOTION
+            # CLICK AND DRAG OBJECT TO GRID
             elif event.type == pygame.MOUSEMOTION:
-                self.update_mouse_pos()  # Update the mouse position
+                self.update_mouse_pos()
                 if self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT:
-                    # Assuming you have a way to determine the object type being dragged, e.g., self.dragging.object_type
-                    grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT)
-                    if grid_pos != self.last_placed_pos:  # Check if the mouse has moved to a new grid cell
-                        self.last_placed_pos = grid_pos  # Update the last placed position
+                    grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, self.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT)
+                    if grid_pos != self.last_placed_pos and not self.is_object_at_position(grid_pos):
+                        self.last_placed_pos = grid_pos
+                        # Your object creation logic here, e.g., for a wall
+                        PlacedWall(grid_pos, self.placed_sprites, IMAGES)
                         
-                        # Example logic for placing a wall, extend this logic for other object types
-                        if self.dragging.wall:
-                            PlacedWall(grid_pos, self.placed_sprites, IMAGES)
-                            # For other objects, repeat similar checks and placement logic
             
             if event.type == MOUSEBUTTONUP:            
                 #################
@@ -744,6 +747,7 @@ class GameState:
         else:
             self.start.stand_spikes.rect.topleft = self.START_POSITIONS['stand_spikes']
     def play_mode_function(self):
+        #print("Number of walls: ", str(PlayWall.wall_list))
         # Dead
         if self.play_player.rect.top > SCREEN_HEIGHT and self.play_player.speed_y >= 0:
             restart_level(self)
