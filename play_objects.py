@@ -431,7 +431,7 @@ class PlayPlayer(PlayObject):
         # which should be called in your game loop's update phase.
     def restart(self):
         # Game Reset
-        self.jumps_left = 1
+        self.jumps_left = 2
         self.speed_y = 0
         self.propeller = 0
         self.last_pressed_r = 1

@@ -376,12 +376,12 @@ class GameState:
                 'fall_spikes': (290, 12), 'stand_spikes': (320, 12)}
     UI_ELEMENTS_POSITIONS = {'play_edit_switch_button': (SCREEN_WIDTH-50, 8),
                              'clear_button': (SCREEN_WIDTH-115, 10),
-                             'info_button': (SCREEN_WIDTH-320, 10),
+                             'info_button': (SCREEN_WIDTH-250, 10),
                              'grid_button': (SCREEN_WIDTH-150, 10),
                              'restart_button': (SCREEN_WIDTH-175, 10),
                              'color_button': (SCREEN_WIDTH-195, 10),
-                             'save_file_button': (SCREEN_WIDTH-230, 10),
-                             'load_file_button': (SCREEN_WIDTH-265, 10),
+                             'save_file_button': (SCREEN_WIDTH-285, 10),
+                             'load_file_button': (SCREEN_WIDTH-320, 10),
                              'rotate_button': (SCREEN_WIDTH-590, 7)}
     TOP_UI_BOUNDARY_Y_HEIGHT = 96
     GRID_SPACING = 24
@@ -422,10 +422,12 @@ class GameState:
         self.restart_button = RestartButton(self.UI_ELEMENTS_POSITIONS['restart_button'], self.play_sprites, IMAGES)
         self.color_button = ColorButton(self.UI_ELEMENTS_POSITIONS['color_button'], IMAGES)
         self.start_sprites.add(self.color_button)
-        self.save_file_button = SaveFileButton(self.UI_ELEMENTS_POSITIONS['save_file_button'], IMAGES)
-        self.start_sprites.add(self.save_file_button)
-        self.load_file_button = LoadFileButton(self.UI_ELEMENTS_POSITIONS['load_file_button'], IMAGES)
-        self.start_sprites.add(self.load_file_button)
+        if not MOBILE_ACCESSIBILITY_MODE:
+            print("TEST: " + str(MOBILE_ACCESSIBILITY_MODE))
+            self.save_file_button = SaveFileButton(self.UI_ELEMENTS_POSITIONS['save_file_button'], IMAGES)
+            self.start_sprites.add(self.save_file_button)
+            self.load_file_button = LoadFileButton(self.UI_ELEMENTS_POSITIONS['load_file_button'], IMAGES)
+            self.start_sprites.add(self.load_file_button)
         self.rotate_button = RotateButton(self.UI_ELEMENTS_POSITIONS['rotate_button'], IMAGES)
         self.start_sprites.add(self.rotate_button)
             
