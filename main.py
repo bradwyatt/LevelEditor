@@ -409,6 +409,8 @@ class GameState:
         
         self.is_dragging = False  # Initialize dragging state
         self.last_placed_pos = None  # Track the last placed position to avoid duplicates
+        
+        self.is_an_object_currently_being_dragged = False
 
     def update_mouse_pos(self):
         self.mouse_pos = pygame.mouse.get_pos()
@@ -455,10 +457,10 @@ class GameState:
                     self.is_paused = not self.is_paused
                     print("Pause Toggled:", self.is_paused)
             # Update dragging state
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # Left click hold down
                 self.is_dragging = True
                 self.last_placed_pos = None  # Reset last placed position on new click
-            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1: # Left click release
                 self.is_dragging = False
                 self.last_placed_pos = None  # Clear the last placed position when releasing the button
 
@@ -493,6 +495,7 @@ class GameState:
                             self.dragging.dragging_all_false()
                             self.start = restart_start_objects(self.start, self.START_POSITIONS)
                             self.dragging.player = True
+                            self.is_an_object_currently_being_dragged = True
                             self.start.blank_box.flip_start_sprite(self.dragging, self.start.player.rect.topleft, IMAGES)
                         else:
                             print("Error: Too many players")
@@ -501,6 +504,7 @@ class GameState:
                             self.dragging.dragging_all_false()
                             self.start = restart_start_objects(self.start, self.START_POSITIONS)
                             self.dragging.door = True
+                            self.is_an_object_currently_being_dragged = True
                             self.start.blank_box.flip_start_sprite(self.dragging, self.start.door.rect.topleft, IMAGES)
                         else:
                             print("Error: Only one exit allowed")
@@ -508,47 +512,58 @@ class GameState:
                         self.dragging.dragging_all_false()
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
                         self.dragging.wall = True
+                        self.is_an_object_currently_being_dragged = True
                         self.start.blank_box.flip_start_sprite(self.dragging, self.start.wall.rect.topleft, IMAGES)
                     elif self.start.flyer.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
                         self.dragging.flyer = True
+                        self.is_an_object_currently_being_dragged = True
                         self.start.blank_box.flip_start_sprite(self.dragging, self.start.flyer.rect.topleft, IMAGES)
                     elif self.start.reverse_wall.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
                         self.dragging.reverse_wall = True
+                        self.is_an_object_currently_being_dragged = True
                         self.start.blank_box.flip_start_sprite(self.dragging, self.start.reverse_wall.rect.topleft, IMAGES)
                     elif self.start.spring.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
                         self.dragging.spring = True
+                        self.is_an_object_currently_being_dragged = True
                         self.start.blank_box.flip_start_sprite(self.dragging, self.start.spring.rect.topleft, IMAGES)
                     elif self.start.smily_robot.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
                         self.dragging.smily_robot = True
+                        self.is_an_object_currently_being_dragged = True
                         self.start.blank_box.flip_start_sprite(self.dragging, self.start.smily_robot.rect.topleft, IMAGES)
                     elif self.start.diamonds.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
                         self.dragging.diamonds = True
+                        self.is_an_object_currently_being_dragged = True
                         self.start.blank_box.flip_start_sprite(self.dragging, self.start.diamonds.rect.topleft, IMAGES)
                     elif self.start.sticky_block.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
                         self.dragging.sticky_block = True
+                        self.is_an_object_currently_being_dragged = True
                         self.start.blank_box.flip_start_sprite(self.dragging, self.start.sticky_block.rect.topleft, IMAGES)
                     elif self.start.fall_spikes.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
                         self.dragging.fall_spikes = True
+                        self.is_an_object_currently_being_dragged = True
                         self.start.blank_box.flip_start_sprite(self.dragging, self.start.fall_spikes.rect.topleft, IMAGES)
                     elif self.start.stand_spikes.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
                         self.dragging.stand_spikes = True
+                        self.is_an_object_currently_being_dragged = True
                         self.start.blank_box.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES)
+                    else:
+                        self.is_an_object_currently_being_dragged = False
                         
             #################
             # LEFT CLICK (PRESSED DOWN)
@@ -592,11 +607,16 @@ class GameState:
             #################
             # CLICK (RELEASE)
             #################           
-            # Right click on obj, destroy
-            elif(event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[2] and self.game_mode == self.EDIT_MODE):   
-                self.dragging.dragging_all_false()
-                self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+            elif event.type == MOUSEBUTTONDOWN and event.button == 3:  # Right click is button 3
+                # Either delete object being dragged or delete object on grid (if not currently dragging an object)
+                if self.is_an_object_currently_being_dragged:
+                    # If there is a current dragged object, delete it
+                    self.dragging.dragging_all_false()
+                    self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                    self.is_an_object_currently_being_dragged = False
+                else:
+                    # No object is currently being dragged, attempt to delete object at grid position
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
             
             # CLICK AND DRAG OBJECT TO GRID
             elif event.type == pygame.MOUSEMOTION:
