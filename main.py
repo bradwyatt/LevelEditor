@@ -14,7 +14,7 @@ from pygame.constants import RLEACCEL
 from pygame.locals import (KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP, K_LEFT,
                            K_RIGHT, QUIT, K_ESCAPE)
 from utils import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, IMAGES, SOUNDS, MOBILE_ACCESSIBILITY_MODE, load_image, load_sound
-from ui import ClearButton, InfoButton, RestartButton, GridButton, ColorButton, SaveFileButton, LoadFileButton
+from ui import ClearButton, InfoButton, EraserButton, RestartButton, GridButton, ColorButton, SaveFileButton, LoadFileButton
 from start_objects import StartWall, StartReverseWall, StartDiamonds, StartDoor, StartFlyer, StartSmilyRobot, StartSpring, StartPlayer, StartStickyBlock, StartFallSpikes, StartStandSpikes, RotateButton
 from placed_objects import PlacedWall, PlacedReverseWall, PlacedDiamonds, PlacedDoor, PlacedFlyer, PlacedSmilyRobot, PlacedSpring, PlacedStickyBlock, PlacedFallSpikes, PlacedStandSpikes, PlacedPlayer
 from play_objects import PlayWall, PlayReverseWall, PlayFlyer, PlayDiamonds, PlayDoor, PlaySmilyRobot, PlayStickyBlock, PlayStandSpikes, PlayFallSpikes, PlaySpring, PlayPlayer
@@ -66,6 +66,10 @@ def load_all_assets():
     load_image("sprites/load_file.png", "spr_load_file_button", True)
     load_image("sprites/rotate.png", "spr_rotate_button", True)
     load_image("sprites/grid.png", "spr_grid", True)
+    load_image("sprites/eraser_not_selected_button.png", "spr_eraser_not_selected_button", True)
+    load_image("sprites/eraser_selected_button.png", "spr_eraser_selected_button", True)
+    load_image("sprites/eraser_cursor.png", "spr_eraser_cursor", True)
+
     
     #SOUNDS
     load_sound("sounds/propeller.wav", "snd_propeller")
@@ -375,13 +379,14 @@ class GameState:
                 'door': (195, 2), 'diamonds': (225, 14), 'sticky_block': (70, 12),
                 'fall_spikes': (290, 12), 'stand_spikes': (320, 12)}
     UI_ELEMENTS_POSITIONS = {'play_edit_switch_button': (SCREEN_WIDTH-50, 8),
+                             'eraser_button': (SCREEN_WIDTH-355,10),
                              'clear_button': (SCREEN_WIDTH-115, 10),
                              'info_button': (SCREEN_WIDTH-250, 10),
                              'grid_button': (SCREEN_WIDTH-150, 10),
                              'restart_button': (SCREEN_WIDTH-175, 10),
                              'color_button': (SCREEN_WIDTH-195, 10),
-                             'save_file_button': (SCREEN_WIDTH-285, 10),
-                             'load_file_button': (SCREEN_WIDTH-320, 10),
+                             'save_file_button': (SCREEN_WIDTH-425, 10),
+                             'load_file_button': (SCREEN_WIDTH-390, 10),
                              'rotate_button': (SCREEN_WIDTH-590, 7)}
     TOP_UI_BOUNDARY_Y_HEIGHT = 96
     GRID_SPACING = 24
@@ -398,7 +403,7 @@ class GameState:
         self.start = Start(self.start_sprites, self.START_POSITIONS)
         self.game_mode = GameState.EDIT_MODE
         self.mouse_pos = (0, 0)
-        self.init_ui_elements()
+        
         self.jump_key_released = True 
         
         self.placed_player = None
@@ -411,6 +416,9 @@ class GameState:
         self.last_placed_pos = None  # Track the last placed position to avoid duplicates
         
         self.is_an_object_currently_being_dragged = False
+        
+        self.eraser_mode_active = False
+        self.init_ui_elements()
 
     def update_mouse_pos(self):
         self.mouse_pos = pygame.mouse.get_pos()
@@ -426,6 +434,8 @@ class GameState:
                                                             IMAGES)
         self.clear_button = ClearButton(self.UI_ELEMENTS_POSITIONS['clear_button'], IMAGES)
         self.start_sprites.add(self.clear_button)
+        self.eraser_button = EraserButton(self.UI_ELEMENTS_POSITIONS['eraser_button'], self.eraser_mode_active, IMAGES)
+        self.start_sprites.add(self.eraser_button)
         self.info_button = InfoButton(self.UI_ELEMENTS_POSITIONS['info_button'], IMAGES)
         self.start_sprites.add(self.info_button)
         self.grid_button = GridButton(self.UI_ELEMENTS_POSITIONS['grid_button'], IMAGES)
@@ -478,6 +488,8 @@ class GameState:
                             self.grid_button.grid_on_var = False
                         else:
                             self.grid_button.grid_on_var = True
+                    if self.eraser_button.rect.collidepoint(self.mouse_pos):
+                        self.toggle_eraser_mode()
                     if not MOBILE_ACCESSIBILITY_MODE:
                         if self.color_button.rect.collidepoint(self.mouse_pos):
                             COLORKEY = get_color()
@@ -724,6 +736,18 @@ class GameState:
                         remove_all_placed(self)
                 if self.rotate_button.rect.collidepoint(self.mouse_pos):
                     self.start.stand_spikes.rotate -= 90
+    def toggle_eraser_mode(self):
+        # Toggle the eraser mode state
+        self.eraser_mode_active = not self.eraser_mode_active
+        if self.eraser_mode_active:
+            # Change cursor to eraser image
+            eraser_cursor_image = IMAGES["spr_eraser_cursor"]
+            pygame.mouse.set_visible(False)  # Hide the default cursor
+        else:
+            # Change cursor back to default
+            pygame.mouse.set_visible(True)
+        # Update the eraser button visual state
+        self.eraser_button.toggle_eraser_button_image(self.eraser_mode_active)
     def switch_to_edit_mode(self):
         # Makes sure you are not in editing mode to enter editing mode
         print("Editing Mode Activated")
@@ -1053,6 +1077,7 @@ def main():
                 pass
             
             SCREEN.fill(COLORKEY)
+            
 
             game_state.game_mode_sprites.draw(SCREEN)
             if game_state.game_mode == game_state.EDIT_MODE: #Only draw placed sprites in editing mode
@@ -1065,6 +1090,13 @@ def main():
                 game_state.play_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("Deaths: " + str(game_state.play_player.death_count), 1, (0, 0, 0))
             SCREEN.blit(DEATH_COUNT_TEXT, ((SCREEN_WIDTH/2-50), 5))
+            
+            if game_state.eraser_mode_active:
+                # Draw eraser cursor image at the mouse position
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                eraser_cursor_image = IMAGES["spr_eraser_cursor"]
+                game_state.screen.blit(eraser_cursor_image, (mouse_x - eraser_cursor_image.get_width() / 2, mouse_y - eraser_cursor_image.get_height() / 2))
+
 
             pygame.display.update()
         elif MENUON == 2: # Info SCREEN in a WHILE loop
