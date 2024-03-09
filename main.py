@@ -52,7 +52,10 @@ def load_all_assets():
     load_image("sprites/smily_robot_2.png", "spr_smily_robot_2", True)
     load_image("sprites/sticky_block.png", "spr_sticky_block", True)
     load_image("sprites/fall_spikes.png", "spr_fall_spikes", True)
-    load_image("sprites/stand_spikes.png", "spr_stand_spikes", True)
+    load_image("sprites/stand_spikes.png", "spr_stand_spikes_0_degrees", True)
+    IMAGES['spr_stand_spikes_90_degrees'] = pygame.transform.rotate(IMAGES["spr_stand_spikes_0_degrees"], -90)
+    IMAGES['spr_stand_spikes_180_degrees'] = pygame.transform.rotate(IMAGES["spr_stand_spikes_0_degrees"], -180)
+    IMAGES['spr_stand_spikes_270_degrees'] = pygame.transform.rotate(IMAGES["spr_stand_spikes_0_degrees"], -270)
     load_image("sprites/player.png", "spr_player", True)
     load_image("sprites/player_propeller.png", "spr_player_propeller", True)
     load_image("sprites/play_button.png", "spr_play_button", True)
@@ -131,7 +134,7 @@ def restart_start_objects(start, start_positions):
     start.diamonds.rect.topleft = start_positions['diamonds']
     start.sticky_block.rect.topleft = start_positions['sticky_block']
     start.fall_spikes.rect.topleft = start_positions['fall_spikes']
-    start.fall_spikes.rect.topleft = start_positions['stand_spikes']
+    start.stand_spikes.rect.topleft = start_positions['stand_spikes']
     return start
 
 def get_color():
@@ -192,6 +195,7 @@ def load_file(PLACED_SPRITES, colorkey, game_state):
     for fall_spikes_pos in loaded_dict['fall_spikes']:
         PlacedFallSpikes(fall_spikes_pos, PLACED_SPRITES)
     for stand_spikes_pos in loaded_dict['stand_spikes']:
+        #%% This needs to be changed in the future
         PlacedStandSpikes(stand_spikes_pos, PLACED_SPRITES)
     colorkey = loaded_dict['RGB']
     
@@ -263,7 +267,7 @@ class StartBlankBox(pygame.sprite.Sprite):
         
     def update(self):
         pass
-    def flip_start_sprite(self, dragging, pos, images):
+    def flip_start_sprite(self, dragging, pos, images, rotate=0):
         self.rect.topleft = pos
         if dragging.player:
             self.image = images["spr_player"]
@@ -286,7 +290,14 @@ class StartBlankBox(pygame.sprite.Sprite):
         elif dragging.fall_spikes:
             self.image = images["spr_fall_spikes"]
         elif dragging.stand_spikes:
-            self.image = images["spr_stand_spikes"]
+            if rotate == 0:
+                self.image = images["spr_stand_spikes_0_degrees"]
+            elif rotate == 90:
+                self.image = images["spr_stand_spikes_90_degrees"]
+            elif rotate == 180:
+                self.image = images["spr_stand_spikes_180_degrees"]
+            elif rotate == 270:
+                self.image = images["spr_stand_spikes_270_degrees"]
         else:
             self.image = images["spr_blank_box"]
 
@@ -575,9 +586,10 @@ class GameState:
                             self.start = restart_start_objects(self.start, self.START_POSITIONS)
                             self.dragging.stand_spikes = True
                             self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES)
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES, self.rotate_button.current_stand_spikes_rotate)
                         else:
                             self.is_an_object_currently_being_dragged = False
+                            self.start.blank_box.image = IMAGES["spr_blank_box"]
                         
             #################
             # LEFT CLICK (PRESSED DOWN)
@@ -617,7 +629,7 @@ class GameState:
                         PlacedFallSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                     elif self.dragging.stand_spikes:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedStandSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        PlacedStandSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES, self.rotate_button.current_stand_spikes_rotate)
                 elif self.eraser_mode_active:
                     # Either delete object being dragged or delete object on grid (if not currently dragging an object)
                     if self.is_an_object_currently_being_dragged:
@@ -691,7 +703,7 @@ class GameState:
                             PlacedFallSpikes(grid_pos, self.placed_sprites, IMAGES)
                             
                         elif self.dragging.stand_spikes:
-                            PlacedStandSpikes(grid_pos, self.placed_sprites, IMAGES)
+                            PlacedStandSpikes(grid_pos, self.placed_sprites, IMAGES, self.rotate_button.current_stand_spikes_rotate)
                             
             
             if event.type == MOUSEBUTTONUP:            
@@ -747,7 +759,9 @@ class GameState:
                         # REMOVE ALL SPRITES
                         remove_all_placed(self)
                 if self.rotate_button.rect.collidepoint(self.mouse_pos):
-                    self.start.stand_spikes.rotate -= 90
+                    self.rotate_button.current_stand_spikes_rotate = (self.rotate_button.current_stand_spikes_rotate + 90) % 360
+                    self.start.stand_spikes.change_image_rotation(self.rotate_button.current_stand_spikes_rotate)
+
     def toggle_eraser_mode(self):
         # Toggle the eraser mode state
         self.eraser_mode_active = not self.eraser_mode_active
@@ -833,10 +847,6 @@ class GameState:
                                               self.mouse_pos[1]-(self.start.fall_spikes.image.get_height()/2))
         else:
             self.start.fall_spikes.rect.topleft = self.START_POSITIONS['fall_spikes']
-        if self.start.stand_spikes.rotate == 0:
-            self.start.stand_spikes.image = IMAGES["spr_stand_spikes"]
-        else:
-            self.start.stand_spikes.image = pygame.transform.rotate(IMAGES["spr_stand_spikes"], self.start.stand_spikes.rotate)
         if self.dragging.stand_spikes:
             self.start.blank_box.rect.topleft = self.START_POSITIONS['stand_spikes'] # Replaces in Menu
             self.start.stand_spikes.rect.topleft = (self.mouse_pos[0]-(self.start.stand_spikes.image.get_width()/2),

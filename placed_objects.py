@@ -99,8 +99,18 @@ class PlacedFallSpikes(PlacedObject):
 class PlacedStandSpikes(PlacedObject):
     stand_spikes_list = []
 
-    def __init__(self, pos, placed_sprites, images):
-        super().__init__(pos, placed_sprites, images["spr_stand_spikes"])
+    def __init__(self, pos, placed_sprites, images, rotate=0):
+        super().__init__(pos, placed_sprites, images["spr_stand_spikes_0_degrees"])
+        self.images = images
+        self.rotate = rotate
+        if self.rotate == 0:
+            self.image = self.images["spr_stand_spikes_0_degrees"]
+        elif self.rotate == 90:
+            self.image = self.images["spr_stand_spikes_90_degrees"]
+        elif self.rotate == 180:
+            self.image = self.images["spr_stand_spikes_180_degrees"]
+        elif self.rotate == 270:
+            self.image = self.images["spr_stand_spikes_270_degrees"]
 
     def add_to_class_list(self):
         PlacedStandSpikes.stand_spikes_list.append(self)
