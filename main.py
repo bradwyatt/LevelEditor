@@ -80,23 +80,45 @@ def load_all_assets():
     load_sound("sounds/spring.wav", "snd_spring")
     SOUNDS["snd_spring"].set_volume(.15)
 
-def snap_to_grid(pos, screen_width, screen_height, grid_spacing, top_ui_boundary_y_height):
+# def snap_to_grid(pos, screen_width, screen_height, grid_spacing, top_ui_boundary_y_height):
+#     """
+#     Adjusts a given position to the top-left corner of the nearest grid cell.
+    
+#     :param pos: A tuple (x, y) representing the position to adjust.
+#     :param screen_width: Width of the screen or canvas.
+#     :param screen_height: Height of the screen or canvas.
+#     :param grid_spacing: The size of each grid cell.
+#     :param top_ui_boundary_y_height: The Y-coordinate from where the grid starts.
+#     :return: A tuple (adjusted_x, adjusted_y) representing the adjusted position.
+#     """
+#     # Calculate column and row in the grid based on the position
+#     col = pos[0] // grid_spacing
+#     row = max(0, (pos[1] - top_ui_boundary_y_height) // grid_spacing)
+
+#     # Calculate the adjusted position
+#     adjusted_x = col * grid_spacing
+#     adjusted_y = row * grid_spacing + top_ui_boundary_y_height
+
+#     return adjusted_x, adjusted_y
+
+def snap_to_grid(pos, screen_width, screen_height, grid_spacing, top_ui_boundary_y_height, left_ui_boundary_x_width=0):
     """
-    Adjusts a given position to the top-left corner of the nearest grid cell.
+    Adjusts a given position to the top-left corner of the nearest grid cell, considering both top and left UI boundaries.
     
     :param pos: A tuple (x, y) representing the position to adjust.
     :param screen_width: Width of the screen or canvas.
     :param screen_height: Height of the screen or canvas.
     :param grid_spacing: The size of each grid cell.
     :param top_ui_boundary_y_height: The Y-coordinate from where the grid starts.
+    :param left_ui_boundary_x_width: The X-coordinate from where the grid starts. Default is 0 if not specified.
     :return: A tuple (adjusted_x, adjusted_y) representing the adjusted position.
     """
-    # Calculate column and row in the grid based on the position
-    col = pos[0] // grid_spacing
+    # Calculate column and row in the grid based on the position, including left offset
+    col = max(0, (pos[0] - left_ui_boundary_x_width) // grid_spacing)
     row = max(0, (pos[1] - top_ui_boundary_y_height) // grid_spacing)
 
     # Calculate the adjusted position
-    adjusted_x = col * grid_spacing
+    adjusted_x = col * grid_spacing + left_ui_boundary_x_width
     adjusted_y = row * grid_spacing + top_ui_boundary_y_height
 
     return adjusted_x, adjusted_y
@@ -219,21 +241,43 @@ def save_file(colorkey):
             print("Error! Need player and door to save!")
     except IOError:
         print("Save File Error, please restart game and try again.")
-
-def create_grids_in_game_world(game_state, screen_width, screen_height, grid_spacing, top_ui_boundary_y_height):
+            
+def draw_grid(screen, grid_spacing, screen_width, screen_height, top_ui_boundary_y_height, horizontal_offset):
     """
-    Creates a grid for the level editor.
+    Draws a grid on the screen with equal horizontal offsets on both sides.
 
-    :param game_state: The current state of the game, holding sprite groups and other stateful information.
+    :param screen: The Pygame screen object where the grid will be drawn.
+    :param grid_spacing: The spacing between each grid line, defining the size of grid cells.
     :param screen_width: The width of the screen or canvas.
     :param screen_height: The height of the screen or canvas.
-    :param grid_spacing: The spacing between grid lines.
     :param top_ui_boundary_y_height: The Y-coordinate from where the grid should start, to avoid UI overlap.
+    :param horizontal_offset: The horizontal offset from the sides of the screen.
     """
-    for x in range(0, screen_width, grid_spacing):
-        for y in range(top_ui_boundary_y_height, screen_height, grid_spacing):
-            grid = Grid(game_state.grid_sprites, IMAGES)
-            grid.rect.topleft = (x, y)
+    # Set the color of the grid lines
+    grid_color = (0, 0, 0)  # Black
+
+    # Calculate the drawable area considering offsets and top UI boundary
+    drawable_width = screen_width - 2 * horizontal_offset
+    drawable_height = screen_height - top_ui_boundary_y_height
+
+    # Calculate the number of complete vertical and horizontal cells that fit within the drawable area
+    num_complete_vertical_cells = drawable_width // grid_spacing
+    num_complete_horizontal_cells = drawable_height // grid_spacing
+
+    # Calculate the adjusted width and height to only include complete cells
+    adjusted_width = num_complete_vertical_cells * grid_spacing
+    adjusted_height = num_complete_horizontal_cells * grid_spacing
+
+    # Draw vertical lines
+    for i in range(num_complete_vertical_cells + 1):  # +1 to draw the last line on the right
+        x_position = i * grid_spacing + horizontal_offset
+        pygame.draw.line(screen, grid_color, (x_position, top_ui_boundary_y_height), (x_position, top_ui_boundary_y_height + adjusted_height))
+
+    # Draw horizontal lines
+    for j in range(num_complete_horizontal_cells + 1):  # +1 to draw the last line at the bottom
+        y_position = j * grid_spacing + top_ui_boundary_y_height
+        pygame.draw.line(screen, grid_color, (horizontal_offset, y_position), (horizontal_offset + adjusted_width, y_position))
+
 
 class InfoScreen():
     def __init__(self, INFO_SCREEN, screen):
@@ -327,6 +371,8 @@ class MusicPlayer():
 
 class Grid(pygame.sprite.Sprite):
     grid_list = []
+    ALL_GRIDS_ENABLED = True
+    GRID_SPACING = 23
     def __init__(self, GRID_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
         self.image = images["spr_grid"]
@@ -399,8 +445,9 @@ class GameState:
                              'save_file_button': (SCREEN_WIDTH-425, 10),
                              'load_file_button': (SCREEN_WIDTH-390, 10),
                              'rotate_button': (348, 7)}
-    TOP_UI_BOUNDARY_Y_HEIGHT = 96
-    GRID_SPACING = 24
+    TOP_UI_BOUNDARY_Y_HEIGHT = 90
+    HORIZONTAL_GRID_OFFSET = 150
+    
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -497,10 +544,10 @@ class GameState:
                 if self.game_mode == GameState.EDIT_MODE:
                     # BUTTONS
                     if self.grid_button.rect.collidepoint(self.mouse_pos):
-                        if self.grid_button.grid_on_var:
-                            self.grid_button.grid_on_var = False
+                        if Grid.ALL_GRIDS_ENABLED:
+                            Grid.ALL_GRIDS_ENABLED = False
                         else:
-                            self.grid_button.grid_on_var = True
+                            Grid.ALL_GRIDS_ENABLED = True
                     if self.eraser_button.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.is_an_object_currently_being_dragged = False
@@ -601,37 +648,37 @@ class GameState:
                     # Place object on location of mouse release
                     if self.dragging.player:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        self.placed_player = PlacedPlayer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        self.placed_player = PlacedPlayer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.door:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        self.placed_door = PlacedDoor(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        self.placed_door = PlacedDoor(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.wall:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        PlacedWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.flyer:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedFlyer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        PlacedFlyer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.reverse_wall:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedReverseWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        PlacedReverseWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.smily_robot:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedSmilyRobot(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        PlacedSmilyRobot(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.spring:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedSpring(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        PlacedSpring(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.diamonds:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedDiamonds(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        PlacedDiamonds(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.sticky_block:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedStickyBlock(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        PlacedStickyBlock(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.fall_spikes:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedFallSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                        PlacedFallSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES)
                     elif self.dragging.stand_spikes:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                        PlacedStandSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES, self.rotate_button.current_stand_spikes_rotate)
+                        PlacedStandSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET), self.placed_sprites, IMAGES, self.rotate_button.current_stand_spikes_rotate)
                 elif self.eraser_mode_active:
                     # Either delete object being dragged or delete object on grid (if not currently dragging an object)
                     if self.is_an_object_currently_being_dragged:
@@ -660,7 +707,7 @@ class GameState:
             elif event.type == pygame.MOUSEMOTION:
                 self.update_mouse_pos()
                 if self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT:
-                    grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, self.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT)
+                    grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
                     if grid_pos != self.last_placed_pos and not self.is_object_at_position(grid_pos):
                         self.last_placed_pos = grid_pos
                         
@@ -1070,14 +1117,7 @@ def main():
     INFO_SCREEN = pygame.transform.scale(INFO_SCREEN, (SCREEN_WIDTH, SCREEN_HEIGHT))
     
     #MUSIC_PLAYER = [MusicPlayer()]
-    
-    # Creating grid on main area
-    create_grids_in_game_world(game_state, 
-                               SCREEN_WIDTH, 
-                               SCREEN_HEIGHT, 
-                               GameState.GRID_SPACING, 
-                               GameState.TOP_UI_BOUNDARY_Y_HEIGHT)
-    
+        
     while True:
         clock.tick(FPS)
         game_state.update_mouse_pos()
@@ -1110,6 +1150,9 @@ def main():
                 game_state.start_sprites.draw(SCREEN)
                 game_state.placed_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("", 1, (0, 0, 0))
+                if Grid.ALL_GRIDS_ENABLED:
+                    draw_grid(SCREEN, Grid.GRID_SPACING, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
+                
                 if game_state.eraser_mode_active:
                     # Draw eraser cursor image at the mouse position
                     mouse_x, mouse_y = pygame.mouse.get_pos()
