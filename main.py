@@ -703,8 +703,13 @@ class GameState:
                     # No object is currently being dragged, attempt to delete object at grid position
                     remove_placed_object(self.placed_sprites, self.mouse_pos, self)
             
+            elif (event.type == pygame.MOUSEMOTION and self.eraser_mode_active):
+                self.update_mouse_pos()
+                if self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT:
+                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+            
             # CLICK AND DRAG OBJECT TO GRID
-            elif event.type == pygame.MOUSEMOTION:
+            elif (event.type == pygame.MOUSEMOTION and not self.eraser_mode_active):
                 self.update_mouse_pos()
                 if self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT:
                     grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
