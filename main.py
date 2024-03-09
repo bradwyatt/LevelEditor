@@ -14,7 +14,7 @@ from pygame.constants import RLEACCEL
 from pygame.locals import (KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP, K_LEFT,
                            K_RIGHT, QUIT, K_ESCAPE)
 from utils import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, IMAGES, SOUNDS, MOBILE_ACCESSIBILITY_MODE, load_image, load_sound
-from ui import ClearButton, InfoButton, RestartButton, GridButton, ColorButton, SaveFileButton, LoadFileButton
+from ui import ClearButton, InfoButton, EraserButton, RestartButton, GridButton, ColorButton, SaveFileButton, LoadFileButton
 from start_objects import StartWall, StartReverseWall, StartDiamonds, StartDoor, StartFlyer, StartSmilyRobot, StartSpring, StartPlayer, StartStickyBlock, StartFallSpikes, StartStandSpikes, RotateButton
 from placed_objects import PlacedWall, PlacedReverseWall, PlacedDiamonds, PlacedDoor, PlacedFlyer, PlacedSmilyRobot, PlacedSpring, PlacedStickyBlock, PlacedFallSpikes, PlacedStandSpikes, PlacedPlayer
 from play_objects import PlayWall, PlayReverseWall, PlayFlyer, PlayDiamonds, PlayDoor, PlaySmilyRobot, PlayStickyBlock, PlayStandSpikes, PlayFallSpikes, PlaySpring, PlayPlayer
@@ -66,6 +66,10 @@ def load_all_assets():
     load_image("sprites/load_file.png", "spr_load_file_button", True)
     load_image("sprites/rotate.png", "spr_rotate_button", True)
     load_image("sprites/grid.png", "spr_grid", True)
+    load_image("sprites/eraser_not_selected_button.png", "spr_eraser_not_selected_button", True)
+    load_image("sprites/eraser_selected_button.png", "spr_eraser_selected_button", True)
+    load_image("sprites/eraser_cursor.png", "spr_eraser_cursor", True)
+
     
     #SOUNDS
     load_sound("sounds/propeller.wav", "snd_propeller")
@@ -375,13 +379,14 @@ class GameState:
                 'door': (195, 2), 'diamonds': (225, 14), 'sticky_block': (70, 12),
                 'fall_spikes': (290, 12), 'stand_spikes': (320, 12)}
     UI_ELEMENTS_POSITIONS = {'play_edit_switch_button': (SCREEN_WIDTH-50, 8),
+                             'eraser_button': (SCREEN_WIDTH-355,10),
                              'clear_button': (SCREEN_WIDTH-115, 10),
                              'info_button': (SCREEN_WIDTH-250, 10),
                              'grid_button': (SCREEN_WIDTH-150, 10),
                              'restart_button': (SCREEN_WIDTH-175, 10),
                              'color_button': (SCREEN_WIDTH-195, 10),
-                             'save_file_button': (SCREEN_WIDTH-285, 10),
-                             'load_file_button': (SCREEN_WIDTH-320, 10),
+                             'save_file_button': (SCREEN_WIDTH-425, 10),
+                             'load_file_button': (SCREEN_WIDTH-390, 10),
                              'rotate_button': (SCREEN_WIDTH-590, 7)}
     TOP_UI_BOUNDARY_Y_HEIGHT = 96
     GRID_SPACING = 24
@@ -398,7 +403,7 @@ class GameState:
         self.start = Start(self.start_sprites, self.START_POSITIONS)
         self.game_mode = GameState.EDIT_MODE
         self.mouse_pos = (0, 0)
-        self.init_ui_elements()
+        
         self.jump_key_released = True 
         
         self.placed_player = None
@@ -411,6 +416,9 @@ class GameState:
         self.last_placed_pos = None  # Track the last placed position to avoid duplicates
         
         self.is_an_object_currently_being_dragged = False
+        
+        self.eraser_mode_active = False
+        self.init_ui_elements()
 
     def update_mouse_pos(self):
         self.mouse_pos = pygame.mouse.get_pos()
@@ -426,6 +434,8 @@ class GameState:
                                                             IMAGES)
         self.clear_button = ClearButton(self.UI_ELEMENTS_POSITIONS['clear_button'], IMAGES)
         self.start_sprites.add(self.clear_button)
+        self.eraser_button = EraserButton(self.UI_ELEMENTS_POSITIONS['eraser_button'], self.eraser_mode_active, IMAGES)
+        self.start_sprites.add(self.eraser_button)
         self.info_button = InfoButton(self.UI_ELEMENTS_POSITIONS['info_button'], IMAGES)
         self.start_sprites.add(self.info_button)
         self.grid_button = GridButton(self.UI_ELEMENTS_POSITIONS['grid_button'], IMAGES)
@@ -469,7 +479,9 @@ class GameState:
             #################
             # LEFT CLICK (PRESSED DOWN) at Top of Screen
             #################
-            if(event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0] and self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT): 
+            if(event.type == MOUSEBUTTONDOWN 
+               and pygame.mouse.get_pressed()[0] 
+               and self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT): 
                 # DRAG (only for menu and inanimate buttons at top)
                 if self.game_mode == GameState.EDIT_MODE:
                     # BUTTONS
@@ -478,6 +490,8 @@ class GameState:
                             self.grid_button.grid_on_var = False
                         else:
                             self.grid_button.grid_on_var = True
+                    if self.eraser_button.rect.collidepoint(self.mouse_pos):
+                        self.toggle_eraser_mode()
                     if not MOBILE_ACCESSIBILITY_MODE:
                         if self.color_button.rect.collidepoint(self.mouse_pos):
                             COLORKEY = get_color()
@@ -488,122 +502,132 @@ class GameState:
                     
                     # DRAG
                     # Restarts all drag objects
-                    
-                    if self.start.player.rect.collidepoint(self.mouse_pos):
-                        # Checks for if there is already a player placed on level
-                        if self.placed_player is None:
+                    if not self.eraser_mode_active:
+                        if self.start.player.rect.collidepoint(self.mouse_pos):
+                            # Checks for if there is already a player placed on level
+                            if self.placed_player is None:
+                                self.dragging.dragging_all_false()
+                                self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                                self.dragging.player = True
+                                self.is_an_object_currently_being_dragged = True
+                                self.start.blank_box.flip_start_sprite(self.dragging, self.start.player.rect.topleft, IMAGES)
+                            else:
+                                print("Error: Too many players")
+                        elif self.start.door.rect.collidepoint(self.mouse_pos):
+                            if self.placed_door is None:
+                                self.dragging.dragging_all_false()
+                                self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                                self.dragging.door = True
+                                self.is_an_object_currently_being_dragged = True
+                                self.start.blank_box.flip_start_sprite(self.dragging, self.start.door.rect.topleft, IMAGES)
+                            else:
+                                print("Error: Only one exit allowed")
+                        elif self.start.wall.rect.collidepoint(self.mouse_pos):
                             self.dragging.dragging_all_false()
                             self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.player = True
+                            self.dragging.wall = True
                             self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.player.rect.topleft, IMAGES)
-                        else:
-                            print("Error: Too many players")
-                    elif self.start.door.rect.collidepoint(self.mouse_pos):
-                        if self.placed_door is None:
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.wall.rect.topleft, IMAGES)
+                        elif self.start.flyer.rect.collidepoint(self.mouse_pos):
                             self.dragging.dragging_all_false()
                             self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.door = True
+                            self.dragging.flyer = True
                             self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.door.rect.topleft, IMAGES)
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.flyer.rect.topleft, IMAGES)
+                        elif self.start.reverse_wall.rect.collidepoint(self.mouse_pos):
+                            self.dragging.dragging_all_false()
+                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                            self.dragging.reverse_wall = True
+                            self.is_an_object_currently_being_dragged = True
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.reverse_wall.rect.topleft, IMAGES)
+                        elif self.start.spring.rect.collidepoint(self.mouse_pos):
+                            self.dragging.dragging_all_false()
+                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                            self.dragging.spring = True
+                            self.is_an_object_currently_being_dragged = True
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.spring.rect.topleft, IMAGES)
+                        elif self.start.smily_robot.rect.collidepoint(self.mouse_pos):
+                            self.dragging.dragging_all_false()
+                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                            self.dragging.smily_robot = True
+                            self.is_an_object_currently_being_dragged = True
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.smily_robot.rect.topleft, IMAGES)
+                        elif self.start.diamonds.rect.collidepoint(self.mouse_pos):
+                            self.dragging.dragging_all_false()
+                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                            self.dragging.diamonds = True
+                            self.is_an_object_currently_being_dragged = True
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.diamonds.rect.topleft, IMAGES)
+                        elif self.start.sticky_block.rect.collidepoint(self.mouse_pos):
+                            self.dragging.dragging_all_false()
+                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                            self.dragging.sticky_block = True
+                            self.is_an_object_currently_being_dragged = True
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.sticky_block.rect.topleft, IMAGES)
+                        elif self.start.fall_spikes.rect.collidepoint(self.mouse_pos):
+                            self.dragging.dragging_all_false()
+                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                            self.dragging.fall_spikes = True
+                            self.is_an_object_currently_being_dragged = True
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.fall_spikes.rect.topleft, IMAGES)
+                        elif self.start.stand_spikes.rect.collidepoint(self.mouse_pos):
+                            self.dragging.dragging_all_false()
+                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                            self.dragging.stand_spikes = True
+                            self.is_an_object_currently_being_dragged = True
+                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES)
                         else:
-                            print("Error: Only one exit allowed")
-                    elif self.start.wall.rect.collidepoint(self.mouse_pos):
-                        self.dragging.dragging_all_false()
-                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                        self.dragging.wall = True
-                        self.is_an_object_currently_being_dragged = True
-                        self.start.blank_box.flip_start_sprite(self.dragging, self.start.wall.rect.topleft, IMAGES)
-                    elif self.start.flyer.rect.collidepoint(self.mouse_pos):
-                        self.dragging.dragging_all_false()
-                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                        self.dragging.flyer = True
-                        self.is_an_object_currently_being_dragged = True
-                        self.start.blank_box.flip_start_sprite(self.dragging, self.start.flyer.rect.topleft, IMAGES)
-                    elif self.start.reverse_wall.rect.collidepoint(self.mouse_pos):
-                        self.dragging.dragging_all_false()
-                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                        self.dragging.reverse_wall = True
-                        self.is_an_object_currently_being_dragged = True
-                        self.start.blank_box.flip_start_sprite(self.dragging, self.start.reverse_wall.rect.topleft, IMAGES)
-                    elif self.start.spring.rect.collidepoint(self.mouse_pos):
-                        self.dragging.dragging_all_false()
-                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                        self.dragging.spring = True
-                        self.is_an_object_currently_being_dragged = True
-                        self.start.blank_box.flip_start_sprite(self.dragging, self.start.spring.rect.topleft, IMAGES)
-                    elif self.start.smily_robot.rect.collidepoint(self.mouse_pos):
-                        self.dragging.dragging_all_false()
-                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                        self.dragging.smily_robot = True
-                        self.is_an_object_currently_being_dragged = True
-                        self.start.blank_box.flip_start_sprite(self.dragging, self.start.smily_robot.rect.topleft, IMAGES)
-                    elif self.start.diamonds.rect.collidepoint(self.mouse_pos):
-                        self.dragging.dragging_all_false()
-                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                        self.dragging.diamonds = True
-                        self.is_an_object_currently_being_dragged = True
-                        self.start.blank_box.flip_start_sprite(self.dragging, self.start.diamonds.rect.topleft, IMAGES)
-                    elif self.start.sticky_block.rect.collidepoint(self.mouse_pos):
-                        self.dragging.dragging_all_false()
-                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                        self.dragging.sticky_block = True
-                        self.is_an_object_currently_being_dragged = True
-                        self.start.blank_box.flip_start_sprite(self.dragging, self.start.sticky_block.rect.topleft, IMAGES)
-                    elif self.start.fall_spikes.rect.collidepoint(self.mouse_pos):
-                        self.dragging.dragging_all_false()
-                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                        self.dragging.fall_spikes = True
-                        self.is_an_object_currently_being_dragged = True
-                        self.start.blank_box.flip_start_sprite(self.dragging, self.start.fall_spikes.rect.topleft, IMAGES)
-                    elif self.start.stand_spikes.rect.collidepoint(self.mouse_pos):
-                        self.dragging.dragging_all_false()
-                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                        self.dragging.stand_spikes = True
-                        self.is_an_object_currently_being_dragged = True
-                        self.start.blank_box.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES)
-                    else:
-                        self.is_an_object_currently_being_dragged = False
+                            self.is_an_object_currently_being_dragged = False
                         
             #################
             # LEFT CLICK (PRESSED DOWN)
             #################
             elif event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
-                # Place object on location of mouse release
-                if self.dragging.player:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    self.placed_player = PlacedPlayer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.door:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    self.placed_door = PlacedDoor(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.wall:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.flyer:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedFlyer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.reverse_wall:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedReverseWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.smily_robot:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedSmilyRobot(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.spring:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedSpring(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.diamonds:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedDiamonds(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.sticky_block:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedStickyBlock(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.fall_spikes:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedFallSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                elif self.dragging.stand_spikes:
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
-                    PlacedStandSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
-                    
+                if not self.eraser_mode_active:
+                    # Place object on location of mouse release
+                    if self.dragging.player:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        self.placed_player = PlacedPlayer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.door:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        self.placed_door = PlacedDoor(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.wall:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        PlacedWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.flyer:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        PlacedFlyer(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.reverse_wall:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        PlacedReverseWall(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.smily_robot:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        PlacedSmilyRobot(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.spring:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        PlacedSpring(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.diamonds:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        PlacedDiamonds(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.sticky_block:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        PlacedStickyBlock(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.fall_spikes:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        PlacedFallSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                    elif self.dragging.stand_spikes:
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                        PlacedStandSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
+                elif self.eraser_mode_active:
+                    # Either delete object being dragged or delete object on grid (if not currently dragging an object)
+                    if self.is_an_object_currently_being_dragged:
+                        # If there is a current dragged object, delete it
+                        self.dragging.dragging_all_false()
+                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                        self.is_an_object_currently_being_dragged = False
+                    else:
+                        # No object is currently being dragged, attempt to delete object at grid position
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
             #################
             # CLICK (RELEASE)
             #################           
@@ -724,6 +748,18 @@ class GameState:
                         remove_all_placed(self)
                 if self.rotate_button.rect.collidepoint(self.mouse_pos):
                     self.start.stand_spikes.rotate -= 90
+    def toggle_eraser_mode(self):
+        # Toggle the eraser mode state
+        self.eraser_mode_active = not self.eraser_mode_active
+        if self.eraser_mode_active:
+            # Change cursor to eraser image
+            eraser_cursor_image = IMAGES["spr_eraser_cursor"]
+            pygame.mouse.set_visible(False)  # Hide the default cursor
+        else:
+            # Change cursor back to default
+            pygame.mouse.set_visible(True)
+        # Update the eraser button visual state
+        self.eraser_button.toggle_eraser_button_image(self.eraser_mode_active)
     def switch_to_edit_mode(self):
         # Makes sure you are not in editing mode to enter editing mode
         print("Editing Mode Activated")
@@ -1053,6 +1089,7 @@ def main():
                 pass
             
             SCREEN.fill(COLORKEY)
+            
 
             game_state.game_mode_sprites.draw(SCREEN)
             if game_state.game_mode == game_state.EDIT_MODE: #Only draw placed sprites in editing mode
@@ -1061,7 +1098,14 @@ def main():
                 game_state.start_sprites.draw(SCREEN)
                 game_state.placed_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("", 1, (0, 0, 0))
+                if game_state.eraser_mode_active:
+                    # Draw eraser cursor image at the mouse position
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
+                    eraser_cursor_image = IMAGES["spr_eraser_cursor"]
+                    game_state.screen.blit(eraser_cursor_image, (mouse_x-4, mouse_y-4))
             elif game_state.game_mode == game_state.PLAY_MODE: #Only draw play sprites in play mode
+                if game_state.eraser_mode_active:
+                    game_state.toggle_eraser_mode()
                 game_state.play_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("Deaths: " + str(game_state.play_player.death_count), 1, (0, 0, 0))
             SCREEN.blit(DEATH_COUNT_TEXT, ((SCREEN_WIDTH/2-50), 5))
