@@ -398,7 +398,7 @@ class GameState:
                              'color_button': (SCREEN_WIDTH-195, 10),
                              'save_file_button': (SCREEN_WIDTH-425, 10),
                              'load_file_button': (SCREEN_WIDTH-390, 10),
-                             'rotate_button': (SCREEN_WIDTH-590, 7)}
+                             'rotate_button': (348, 7)}
     TOP_UI_BOUNDARY_Y_HEIGHT = 96
     GRID_SPACING = 24
     def __init__(self):
