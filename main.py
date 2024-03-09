@@ -619,8 +619,15 @@ class GameState:
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                         PlacedStandSpikes(snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT), self.placed_sprites, IMAGES)
                 elif self.eraser_mode_active:
-                    # Delete placed object
-                    remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                    # Either delete object being dragged or delete object on grid (if not currently dragging an object)
+                    if self.is_an_object_currently_being_dragged:
+                        # If there is a current dragged object, delete it
+                        self.dragging.dragging_all_false()
+                        self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                        self.is_an_object_currently_being_dragged = False
+                    else:
+                        # No object is currently being dragged, attempt to delete object at grid position
+                        remove_placed_object(self.placed_sprites, self.mouse_pos, self)
             #################
             # CLICK (RELEASE)
             #################           
