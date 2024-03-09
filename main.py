@@ -502,6 +502,8 @@ class GameState:
                         else:
                             self.grid_button.grid_on_var = True
                     if self.eraser_button.rect.collidepoint(self.mouse_pos):
+                        self.dragging.dragging_all_false()
+                        self.is_an_object_currently_being_dragged = False
                         self.toggle_eraser_mode()
                     if not MOBILE_ACCESSIBILITY_MODE:
                         if self.color_button.rect.collidepoint(self.mouse_pos):
