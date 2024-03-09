@@ -220,8 +220,18 @@ class PlayStickyBlock(PlayObject):
         
 class PlayStandSpikes(PlayObject):
     stand_spikes_list = []
-    def __init__(self, pos, play_sprites, images):
-        super().__init__(pos, play_sprites, images["spr_stand_spikes"])
+    def __init__(self, pos, play_sprites, images, rotate=0):
+        super().__init__(pos, play_sprites, images["spr_stand_spikes_0_degrees"])
+        self.images = images
+        self.rotate = rotate
+        if self.rotate == 0:
+            self.image = self.images["spr_stand_spikes_0_degrees"]
+        elif self.rotate == 90:
+            self.image = self.images["spr_stand_spikes_90_degrees"]
+        elif self.rotate == 180:
+            self.image = self.images["spr_stand_spikes_180_degrees"]
+        elif self.rotate == 270:
+            self.image = self.images["spr_stand_spikes_270_degrees"]
         self.pos = pos
         self.fall_var = 0
     def restart(self):

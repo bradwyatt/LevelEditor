@@ -730,16 +730,16 @@ class GameState:
                             PlayReverseWall(placed_reverse_wall.rect.topleft, self.play_sprites, IMAGES)
                         for placed_smily_robot in PlacedSmilyRobot.smily_robot_list:
                             PlaySmilyRobot(placed_smily_robot.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_spring_list in PlacedSpring.spring_list:
-                            PlaySpring(placed_spring_list.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_diamonds_list in PlacedDiamonds.diamonds_list:
-                            PlayDiamonds(placed_diamonds_list.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_sticky_block_list in PlacedStickyBlock.sticky_block_list:
-                            PlayStickyBlock(placed_sticky_block_list.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_fall_spikes_list in PlacedFallSpikes.fall_spikes_list:
-                            PlayFallSpikes(placed_fall_spikes_list.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_stand_spikes_list in PlacedStandSpikes.stand_spikes_list:
-                            PlayStandSpikes(placed_stand_spikes_list.rect.topleft, self.play_sprites, IMAGES)
+                        for placed_spring in PlacedSpring.spring_list:
+                            PlaySpring(placed_spring.rect.topleft, self.play_sprites, IMAGES)
+                        for placed_diamond in PlacedDiamonds.diamonds_list:
+                            PlayDiamonds(placed_diamond.rect.topleft, self.play_sprites, IMAGES)
+                        for placed_sticky_block in PlacedStickyBlock.sticky_block_list:
+                            PlayStickyBlock(placed_sticky_block.rect.topleft, self.play_sprites, IMAGES)
+                        for placed_fall_spikes in PlacedFallSpikes.fall_spikes_list:
+                            PlayFallSpikes(placed_fall_spikes.rect.topleft, self.play_sprites, IMAGES)
+                        for placed_stand_spikes in PlacedStandSpikes.stand_spikes_list:
+                            PlayStandSpikes(placed_stand_spikes.rect.topleft, self.play_sprites, IMAGES, placed_stand_spikes.rotate)
                     else:
                         print("You need a character!")
                 #################
