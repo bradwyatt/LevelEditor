@@ -644,9 +644,6 @@ class GameState:
                             self.dragging.stand_spikes = True
                             self.is_an_object_currently_being_dragged = True
                             self.start.blank_box.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES, self.rotate_button.current_stand_spikes_rotate)
-                        else:
-                            self.is_an_object_currently_being_dragged = False
-                            self.start.blank_box.image = IMAGES["spr_blank_box"]
                         
             #################
             # LEFT CLICK (PRESSED DOWN)
@@ -828,13 +825,12 @@ class GameState:
         #MUSIC_PLAYER = []
         #MUSIC_PLAYER = [MusicPlayer()]
     def switch_to_play_mode(self):
+        # Remove all drag within current edit mode
+        self.dragging.dragging_all_false()
+        self.is_an_object_currently_being_dragged = False
+        GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
         # Makes sure there is at least one player to play game
         if self.placed_player:
-            # Remove all drag within current edit mode
-            self.dragging.dragging_all_false()
-            self.is_an_object_currently_being_dragged = False
-            self.toggle_eraser_mode()
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
             # Makes clicking play again unclickable
             self.game_mode = self.PLAY_MODE
             self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
@@ -943,7 +939,6 @@ class GameState:
         else:
             self.start.stand_spikes.rect.topleft = self.START_POSITIONS['stand_spikes']
     def play_mode_function(self):
-        #print("Number of walls: ", str(PlayWall.wall_list))
         # Dead
         if self.play_player.rect.top > SCREEN_HEIGHT and self.play_player.speed_y >= 0:
             restart_level(self)
@@ -1187,12 +1182,12 @@ def main():
             if game_state.game_mode == game_state.EDIT_MODE: #Only draw placed sprites in editing mode
                 if game_state.grid_button.grid_on_var:
                     game_state.grid_sprites.draw(SCREEN)
-                game_state.start_sprites.draw(SCREEN)
+                
                 game_state.placed_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("", 1, (0, 0, 0))
                 if Grid.ALL_GRIDS_ENABLED:
                     draw_grid(SCREEN, Grid.GRID_SPACING, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
-                
+                game_state.start_sprites.draw(SCREEN)
                 if game_state.eraser_mode_active:
                     # Draw eraser cursor image at the mouse position
                     mouse_x, mouse_y = pygame.mouse.get_pos()
