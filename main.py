@@ -797,37 +797,7 @@ class GameState:
                 # PLAY BUTTON
                 #################
                 if(self.play_edit_switch_button.rect.collidepoint(self.mouse_pos) and self.game_mode == self.EDIT_MODE):
-                    # Makes sure there is at least one player to play game
-                    if self.placed_player:
-                        # Makes clicking play again unclickable
-                        self.game_mode = self.PLAY_MODE
-                        self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
-                        print("Play Mode Activated")
-                        
-                        #MUSIC_PLAYER = [MusicPlayer()]
-                        self.play_player = PlayPlayer(self.placed_player.rect.topleft, self.play_sprites, IMAGES, SOUNDS)
-                        if self.placed_door:
-                            self.play_door = PlayDoor(self.placed_door.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_wall in PlacedWall.wall_list:
-                            PlayWall(placed_wall.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_flyer in PlacedFlyer.flyer_list:
-                            PlayFlyer(placed_flyer.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_reverse_wall in PlacedReverseWall.reverse_wall_list:
-                            PlayReverseWall(placed_reverse_wall.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_smily_robot in PlacedSmilyRobot.smily_robot_list:
-                            PlaySmilyRobot(placed_smily_robot.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_spring in PlacedSpring.spring_list:
-                            PlaySpring(placed_spring.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_diamond in PlacedDiamonds.diamonds_list:
-                            PlayDiamonds(placed_diamond.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_sticky_block in PlacedStickyBlock.sticky_block_list:
-                            PlayStickyBlock(placed_sticky_block.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_fall_spikes in PlacedFallSpikes.fall_spikes_list:
-                            PlayFallSpikes(placed_fall_spikes.rect.topleft, self.play_sprites, IMAGES)
-                        for placed_stand_spikes in PlacedStandSpikes.stand_spikes_list:
-                            PlayStandSpikes(placed_stand_spikes.rect.topleft, self.play_sprites, IMAGES, placed_stand_spikes.rotate)
-                    else:
-                        print("You need a character!")
+                    self.switch_to_play_mode()
                 #################
                 # LEFT CLICK (RELEASE) STOP BUTTON
                 #################
@@ -867,8 +837,47 @@ class GameState:
         self.play_player.death_count = 0
         self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
         remove_all_play(self)
+        self.start = restart_start_objects(self.start, self.START_POSITIONS)
+        
         #MUSIC_PLAYER = []
         #MUSIC_PLAYER = [MusicPlayer()]
+    def switch_to_play_mode(self):
+        # Makes sure there is at least one player to play game
+        if self.placed_player:
+            # Remove all drag within current edit mode
+            self.dragging.dragging_all_false()
+            self.is_an_object_currently_being_dragged = False
+            self.toggle_eraser_mode()
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
+            # Makes clicking play again unclickable
+            self.game_mode = self.PLAY_MODE
+            self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
+            print("Play Mode Activated")
+            
+            #MUSIC_PLAYER = [MusicPlayer()]
+            self.play_player = PlayPlayer(self.placed_player.rect.topleft, self.play_sprites, IMAGES, SOUNDS)
+            if self.placed_door:
+                self.play_door = PlayDoor(self.placed_door.rect.topleft, self.play_sprites, IMAGES)
+            for placed_wall in PlacedWall.wall_list:
+                PlayWall(placed_wall.rect.topleft, self.play_sprites, IMAGES)
+            for placed_flyer in PlacedFlyer.flyer_list:
+                PlayFlyer(placed_flyer.rect.topleft, self.play_sprites, IMAGES)
+            for placed_reverse_wall in PlacedReverseWall.reverse_wall_list:
+                PlayReverseWall(placed_reverse_wall.rect.topleft, self.play_sprites, IMAGES)
+            for placed_smily_robot in PlacedSmilyRobot.smily_robot_list:
+                PlaySmilyRobot(placed_smily_robot.rect.topleft, self.play_sprites, IMAGES)
+            for placed_spring in PlacedSpring.spring_list:
+                PlaySpring(placed_spring.rect.topleft, self.play_sprites, IMAGES)
+            for placed_diamond in PlacedDiamonds.diamonds_list:
+                PlayDiamonds(placed_diamond.rect.topleft, self.play_sprites, IMAGES)
+            for placed_sticky_block in PlacedStickyBlock.sticky_block_list:
+                PlayStickyBlock(placed_sticky_block.rect.topleft, self.play_sprites, IMAGES)
+            for placed_fall_spikes in PlacedFallSpikes.fall_spikes_list:
+                PlayFallSpikes(placed_fall_spikes.rect.topleft, self.play_sprites, IMAGES)
+            for placed_stand_spikes in PlacedStandSpikes.stand_spikes_list:
+                PlayStandSpikes(placed_stand_spikes.rect.topleft, self.play_sprites, IMAGES, placed_stand_spikes.rotate)
+        else:
+            print("You need a character!")
     def edit_mode_function(self):
         if self.dragging.player and self.placed_player is None:
             self.start.blank_box.rect.topleft = self.START_POSITIONS['player'] # Replaces in Menu
