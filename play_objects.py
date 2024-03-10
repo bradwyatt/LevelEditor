@@ -271,7 +271,7 @@ class PlaySpring(PlayObject):
 
 class PlayPlayer(PlayObject):
     # Constants for physics and gameplay adjustments
-    GRAVITY = 0.25
+    GRAVITY = 0.35
     PROP_GRAVITY = 0.01
     MAX_PROP_SPEED = -2
     PROP_ACCELERATION = 0.25

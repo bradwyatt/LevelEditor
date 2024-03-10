@@ -6,7 +6,6 @@ import sys
 import os
 import copy
 import tkinter as tk
-from tkinter.colorchooser import askcolor
 from tkinter.filedialog import asksaveasfilename, askopenfilename
 from ast import literal_eval
 import pygame
@@ -14,7 +13,7 @@ from pygame.constants import RLEACCEL
 from pygame.locals import (KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP, K_LEFT,
                            K_RIGHT, QUIT, K_ESCAPE)
 from utils import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, IMAGES, SOUNDS, MOBILE_ACCESSIBILITY_MODE, load_image, load_sound
-from ui import ClearButton, InfoButton, EraserButton, RestartButton, GridButton, ColorButton, SaveFileButton, LoadFileButton
+from ui import ClearButton, InfoButton, EraserButton, RestartButton, GridButton, SaveFileButton, LoadFileButton
 from start_objects import StartWall, StartReverseWall, StartDiamonds, StartDoor, StartFlyer, StartSmilyRobot, StartSpring, StartPlayer, StartStickyBlock, StartFallSpikes, StartStandSpikes, RotateButton
 from placed_objects import PlacedWall, PlacedReverseWall, PlacedDiamonds, PlacedDoor, PlacedFlyer, PlacedSmilyRobot, PlacedSpring, PlacedStickyBlock, PlacedFallSpikes, PlacedStandSpikes, PlacedPlayer
 from play_objects import PlayWall, PlayReverseWall, PlayFlyer, PlayDiamonds, PlayDoor, PlaySmilyRobot, PlayStickyBlock, PlayStandSpikes, PlayFallSpikes, PlaySpring, PlayPlayer
@@ -64,7 +63,6 @@ def load_all_assets():
     load_image("sprites/info_button.png", "spr_info_button", True)
     load_image("sprites/grid_button.png", "spr_grid_button", True)
     load_image("sprites/restart.png", "spr_restart_button", True)
-    load_image("sprites/color_button.png", "spr_color_button", True)
     load_image("sprites/save_file.png", "spr_save_file_button", True)
     load_image("sprites/load_file.png", "spr_load_file_button", True)
     load_image("sprites/rotate.png", "spr_rotate_button", True)
@@ -156,11 +154,7 @@ def restart_start_objects(start, start_positions):
     start.stand_spikes.rect.topleft = start_positions['stand_spikes']
     return start
 
-def get_color():
-    color = askcolor()
-    return [color[0][0], color[0][1], color[0][2]]
-
-def load_file(PLACED_SPRITES, colorkey, game_state):
+def load_file(PLACED_SPRITES, game_state):
     request_file_name = askopenfilename(defaultextension=".lvl")
     open_file = open(request_file_name, "r")
     loaded_file = open_file.read()
@@ -216,12 +210,11 @@ def load_file(PLACED_SPRITES, colorkey, game_state):
     for stand_spikes_pos in loaded_dict['stand_spikes']:
         #%% This needs to be changed in the future
         PlacedStandSpikes(stand_spikes_pos, PLACED_SPRITES)
-    colorkey = loaded_dict['RGB']
     
     print("File Loaded")
-    return PLACED_SPRITES, colorkey
+    return PLACED_SPRITES
 
-def save_file(colorkey):
+def save_file():
     try:
         if GameState.placed_player and GameState.placed_door:
             # default extension is optional, here will add .txt if missing
@@ -230,7 +223,6 @@ def save_file(colorkey):
             if save_file_name is not None:
                 # Write the file to disk
                 obj_locations = copy.deepcopy(get_dict_rect_positions())
-                obj_locations['RGB'] = colorkey
                 save_file_name.write(str(obj_locations))
                 save_file_name.close()
                 print("File Saved Successfully.")
@@ -473,7 +465,6 @@ class GameState:
                              'info_button': (SCREEN_WIDTH-250, 10),
                              'grid_button': (SCREEN_WIDTH-150, 10),
                              'restart_button': (SCREEN_WIDTH-175, 10),
-                             'color_button': (SCREEN_WIDTH-195, 10),
                              'save_file_button': (SCREEN_WIDTH-425, 10),
                              'load_file_button': (SCREEN_WIDTH-390, 10),
                              'rotate_button': (348, 7)}
@@ -533,8 +524,6 @@ class GameState:
         self.grid_button = GridButton(self.UI_ELEMENTS_POSITIONS['grid_button'], IMAGES)
         self.start_sprites.add(self.grid_button)
         self.restart_button = RestartButton(self.UI_ELEMENTS_POSITIONS['restart_button'], self.play_sprites, IMAGES)
-        self.color_button = ColorButton(self.UI_ELEMENTS_POSITIONS['color_button'], IMAGES)
-        self.start_sprites.add(self.color_button)
         if not MOBILE_ACCESSIBILITY_MODE:
             self.save_file_button = SaveFileButton(self.UI_ELEMENTS_POSITIONS['save_file_button'], IMAGES)
             self.start_sprites.add(self.save_file_button)
@@ -587,12 +576,10 @@ class GameState:
                         self.toggle_eraser_mode()
                         GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
                     if not MOBILE_ACCESSIBILITY_MODE:
-                        if self.color_button.rect.collidepoint(self.mouse_pos):
-                            COLORKEY = get_color()
                         if self.save_file_button.rect.collidepoint(self.mouse_pos):
-                            save_file(COLORKEY)
+                            save_file()
                         if self.load_file_button.rect.collidepoint(self.mouse_pos):
-                            self.placed_sprites, COLORKEY = load_file(self.placed_sprites, COLORKEY, self)
+                            self.placed_sprites = load_file(self.placed_sprites, self)
                     
                     # DRAG
                     # Restarts all drag objects
@@ -1155,7 +1142,7 @@ def restart_level(game_state):
         game_state.play_door.restart()
 
 def main():
-    # Tk box for color
+    # Tk box
     if not MOBILE_ACCESSIBILITY_MODE:
         ROOT = tk.Tk()
         ROOT.withdraw()
@@ -1164,8 +1151,6 @@ def main():
     load_all_assets()
     
     game_state = GameState()
-
-    COLORKEY = [160, 160, 160]
     
     #Fonts
     FONT_ARIAL = pygame.font.SysFont('Arial', 24)
@@ -1177,6 +1162,8 @@ def main():
     INFO_SCREEN = pygame.image.load("sprites/info_screen.bmp").convert()
     INFO_SCREEN = pygame.transform.scale(INFO_SCREEN, (SCREEN_WIDTH, SCREEN_HEIGHT))
     
+    METROPOLIS_BACKGROUND = pygame.image.load("sprites/metropolis_background.png").convert()
+    METROPOLIS_BACKGROUND = pygame.transform.scale(METROPOLIS_BACKGROUND, (SCREEN_WIDTH, SCREEN_HEIGHT))
     #MUSIC_PLAYER = [MusicPlayer()]
         
     while True:
@@ -1201,7 +1188,7 @@ def main():
                 # Game is paused
                 pass
             
-            SCREEN.fill(COLORKEY)
+            SCREEN.blit(METROPOLIS_BACKGROUND, (0, 0))
             
 
             game_state.game_mode_sprites.draw(SCREEN)
