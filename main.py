@@ -72,6 +72,12 @@ def load_all_assets():
     load_image("sprites/eraser_not_selected_button.png", "spr_eraser_not_selected_button", True)
     load_image("sprites/eraser_selected_button.png", "spr_eraser_selected_button", True)
     load_image("sprites/eraser_cursor.png", "spr_eraser_cursor", True)
+    
+    load_image("sprites/blue_left_arrow.png", "spr_blue_left_arrow", True)
+    load_image("sprites/blue_right_arrow.png", "spr_blue_right_arrow", True)
+    load_image("sprites/jump_button.png", "spr_jump_button", True)
+
+
 
     
     #SOUNDS
@@ -293,6 +299,26 @@ class InfoScreen():
                         self.menuon = 1
                         break
 
+class ArrowButton(pygame.sprite.Sprite):
+    def __init__(self, start_sprites, images, direction):
+        pygame.sprite.Sprite.__init__(self)
+        if direction == "left":
+            self.image = images["spr_blue_left_arrow"]
+            self.rect = self.image.get_rect()
+            self.rect.topleft = (20, SCREEN_HEIGHT-100)
+        elif direction == "right":
+            self.image = images["spr_blue_right_arrow"]
+            self.rect = self.image.get_rect()
+            self.rect.topleft = (110, SCREEN_HEIGHT-100)
+        start_sprites.add(self)
+        
+class JumpButton(pygame.sprite.Sprite):
+    def __init__(self, start_sprites, images):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = images["spr_jump_button"]
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (SCREEN_WIDTH-170, SCREEN_HEIGHT-145)
+        start_sprites.add(self)
 
 class StartBlankBox(pygame.sprite.Sprite):
     def __init__(self, images):
@@ -452,7 +478,7 @@ class GameState:
                              'load_file_button': (SCREEN_WIDTH-390, 10),
                              'rotate_button': (348, 7)}
     TOP_UI_BOUNDARY_Y_HEIGHT = 90
-    HORIZONTAL_GRID_OFFSET = 150
+    HORIZONTAL_GRID_OFFSET = 200
     BOTTOM_Y_GRID_OFFSET = 5
     BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
     
@@ -1197,6 +1223,10 @@ def main():
                 if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS is not None:
                     sprite_name, pos = GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS
                     draw_yellow_outline(SCREEN, IMAGES[sprite_name], pos, thickness=1)
+                left_arrow = ArrowButton(game_state.start_sprites, IMAGES, "left")
+                right_arrow = ArrowButton(game_state.start_sprites, IMAGES, "right")
+                jump_button = JumpButton(game_state.start_sprites, IMAGES)
+                
             elif game_state.game_mode == game_state.PLAY_MODE: #Only draw play sprites in play mode
                 if game_state.eraser_mode_active:
                     game_state.toggle_eraser_mode()
