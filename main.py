@@ -123,6 +123,18 @@ def snap_to_grid(pos, screen_width, screen_height, grid_spacing, top_ui_boundary
 
     return adjusted_x, adjusted_y
 
+def draw_yellow_outline(screen, sprite_or_image, position, thickness=2):
+    # Determine if we have a sprite or a direct image
+    if hasattr(sprite_or_image, 'rect'):
+        # It's a sprite
+        rect = sprite_or_image.rect
+    else:
+        # It's a direct image; use position and image dimensions to create a rect
+        rect = pygame.Rect(position[0], position[1], sprite_or_image.get_width(), sprite_or_image.get_height())
+    
+    # Draw the rectangle outline
+    pygame.draw.rect(screen, pygame.Color('yellow'), rect, thickness)
+
 def remove_placed_object(placed_sprites, mouse_pos, game_state):
     # Iterate over all lists except the player list, which is handled separately now.
     for placed_item_list in (PlacedWall.wall_list, PlacedFlyer.flyer_list,
@@ -315,35 +327,50 @@ class StartBlankBox(pygame.sprite.Sprite):
         self.rect.topleft = pos
         if dragging.player:
             self.image = images["spr_player"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_player", pos)
         elif dragging.wall:
             self.image = images["spr_wall"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_wall", pos)
         elif dragging.diamonds:
             self.image = images["spr_diamonds"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_diamonds", pos)
         elif dragging.door:
             self.image = pygame.transform.smoothscale(images["spr_door_closed"], (24, 40))
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_door_closed", pos)
         elif dragging.flyer:
             self.image = images["spr_flyer"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_flyer", pos)
         elif dragging.reverse_wall:
             self.image = images["spr_reverse_wall"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_reverse_wall", pos)
         elif dragging.smily_robot:
             self.image = images["spr_smily_robot"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_smily_robot", pos)
         elif dragging.spring:
             self.image = images["spr_spring"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_spring", pos)
         elif dragging.sticky_block:
             self.image = images["spr_sticky_block"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_sticky_block", pos)
         elif dragging.fall_spikes:
             self.image = images["spr_fall_spikes"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_fall_spikes", pos)
         elif dragging.stand_spikes:
             if rotate == 0:
                 self.image = images["spr_stand_spikes_0_degrees"]
+                GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_0_degrees", pos)
             elif rotate == 90:
                 self.image = images["spr_stand_spikes_90_degrees"]
+                GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_90_degrees", pos)
             elif rotate == 180:
                 self.image = images["spr_stand_spikes_180_degrees"]
+                GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_180_degrees", pos)
             elif rotate == 270:
                 self.image = images["spr_stand_spikes_270_degrees"]
+                GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_270_degrees", pos)
         else:
             self.image = images["spr_blank_box"]
+            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
 
 class PlayEditSwitchButton(pygame.sprite.Sprite):
     def __init__(self, pos, GAME_MODE_SPRITES, images):
@@ -447,6 +474,7 @@ class GameState:
                              'rotate_button': (348, 7)}
     TOP_UI_BOUNDARY_Y_HEIGHT = 90
     HORIZONTAL_GRID_OFFSET = 150
+    BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
     
     def __init__(self):
         pygame.init()
@@ -511,7 +539,6 @@ class GameState:
             
     def handle_events(self):
         self.handle_player_input()  # Process player inputs first
-        #print("Number of walls: ", str(PlacedWall.wall_list))
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -552,6 +579,7 @@ class GameState:
                         self.dragging.dragging_all_false()
                         self.is_an_object_currently_being_dragged = False
                         self.toggle_eraser_mode()
+                        GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
                     if not MOBILE_ACCESSIBILITY_MODE:
                         if self.color_button.rect.collidepoint(self.mouse_pos):
                             COLORKEY = get_color()
@@ -699,10 +727,14 @@ class GameState:
                     self.dragging.dragging_all_false()
                     self.start = restart_start_objects(self.start, self.START_POSITIONS)
                     self.is_an_object_currently_being_dragged = False
+                    GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
                 else:
                     # No object is currently being dragged, attempt to delete object at grid position
                     remove_placed_object(self.placed_sprites, self.mouse_pos, self)
             
+            #################
+            # CLICK AND DRAG
+            #################   
             elif (event.type == pygame.MOUSEMOTION and self.eraser_mode_active):
                 self.update_mouse_pos()
                 if self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT:
@@ -1163,6 +1195,10 @@ def main():
                     mouse_x, mouse_y = pygame.mouse.get_pos()
                     eraser_cursor_image = IMAGES["spr_eraser_cursor"]
                     game_state.screen.blit(eraser_cursor_image, (mouse_x-4, mouse_y-4))
+                # Draw yellow outline around start object being dragged
+                if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS is not None:
+                    sprite_name, pos = GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS
+                    draw_yellow_outline(SCREEN, IMAGES[sprite_name], pos, thickness=1)
             elif game_state.game_mode == game_state.PLAY_MODE: #Only draw play sprites in play mode
                 if game_state.eraser_mode_active:
                     game_state.toggle_eraser_mode()
