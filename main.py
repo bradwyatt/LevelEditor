@@ -335,7 +335,7 @@ class StartBlankBox(pygame.sprite.Sprite):
             self.image = images["spr_diamonds"]
             GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_diamonds", pos)
         elif dragging.door:
-            self.image = pygame.transform.smoothscale(images["spr_door_closed"], (24, 40))
+            self.image = images["spr_door_closed"]
             GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_door_closed", pos)
         elif dragging.flyer:
             self.image = images["spr_flyer"]
@@ -877,6 +877,10 @@ class GameState:
         else:
             self.dragging.player = False
             self.start.player.rect.topleft = self.START_POSITIONS['player']
+            # Player was placed in game world already but not currently being dragged
+            if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS:
+                if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS[0] == 'spr_player':
+                    GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
         if self.dragging.door and self.placed_door is None:
             self.start.blank_box.rect.topleft = self.START_POSITIONS['door'] # Replaces in Menu
             self.start.door.rect.topleft = (self.mouse_pos[0]-(self.start.door.image.get_width()/2),
@@ -885,6 +889,10 @@ class GameState:
         else:
             self.dragging.door = False
             self.start.door.rect.topleft = self.START_POSITIONS['door']
+            # Door was placed in game world already but not currently being dragged
+            if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS:
+                if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS[0] == 'spr_door_closed':
+                    GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
         if self.dragging.wall:
             self.start.blank_box.rect.topleft = self.START_POSITIONS['wall'] # Replaces in Menu
             self.start.wall.rect.topleft = (self.mouse_pos[0]-(self.start.wall.image.get_width()/2),
