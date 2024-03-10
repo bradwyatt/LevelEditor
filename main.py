@@ -80,27 +80,6 @@ def load_all_assets():
     load_sound("sounds/spring.wav", "snd_spring")
     SOUNDS["snd_spring"].set_volume(.15)
 
-# def snap_to_grid(pos, screen_width, screen_height, grid_spacing, top_ui_boundary_y_height):
-#     """
-#     Adjusts a given position to the top-left corner of the nearest grid cell.
-    
-#     :param pos: A tuple (x, y) representing the position to adjust.
-#     :param screen_width: Width of the screen or canvas.
-#     :param screen_height: Height of the screen or canvas.
-#     :param grid_spacing: The size of each grid cell.
-#     :param top_ui_boundary_y_height: The Y-coordinate from where the grid starts.
-#     :return: A tuple (adjusted_x, adjusted_y) representing the adjusted position.
-#     """
-#     # Calculate column and row in the grid based on the position
-#     col = pos[0] // grid_spacing
-#     row = max(0, (pos[1] - top_ui_boundary_y_height) // grid_spacing)
-
-#     # Calculate the adjusted position
-#     adjusted_x = col * grid_spacing
-#     adjusted_y = row * grid_spacing + top_ui_boundary_y_height
-
-#     return adjusted_x, adjusted_y
-
 def snap_to_grid(pos, screen_width, screen_height, grid_spacing, top_ui_boundary_y_height, left_ui_boundary_x_width=0):
     """
     Adjusts a given position to the top-left corner of the nearest grid cell, considering both top and left UI boundaries.
@@ -474,6 +453,7 @@ class GameState:
                              'rotate_button': (348, 7)}
     TOP_UI_BOUNDARY_Y_HEIGHT = 90
     HORIZONTAL_GRID_OFFSET = 150
+    BOTTOM_Y_GRID_OFFSET = 5
     BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
     
     def __init__(self):
@@ -671,7 +651,10 @@ class GameState:
             #################
             # LEFT CLICK (PRESSED DOWN)
             #################
-            elif event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
+            elif(event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0] and \
+            self.mouse_pos[0] >= GameState.HORIZONTAL_GRID_OFFSET and \
+            self.mouse_pos[0] <= SCREEN_WIDTH-(GameState.HORIZONTAL_GRID_OFFSET+(Grid.GRID_SPACING/2)) and \
+            self.mouse_pos[1] <= SCREEN_HEIGHT-GameState.BOTTOM_Y_GRID_OFFSET):
                 if not self.eraser_mode_active:
                     # Place object on location of mouse release
                     if self.dragging.player:
@@ -718,7 +701,7 @@ class GameState:
                         # No object is currently being dragged, attempt to delete object at grid position
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
             #################
-            # CLICK (RELEASE)
+            # RIGHT CLICK (RELEASE)
             #################           
             elif event.type == MOUSEBUTTONDOWN and event.button == 3:  # Right click is button 3
                 # Either delete object being dragged or delete object on grid (if not currently dragging an object)
@@ -733,7 +716,7 @@ class GameState:
                     remove_placed_object(self.placed_sprites, self.mouse_pos, self)
             
             #################
-            # CLICK AND DRAG
+            # CLICK AND DRAG (ERASER)
             #################   
             elif (event.type == pygame.MOUSEMOTION and self.eraser_mode_active):
                 self.update_mouse_pos()
@@ -743,7 +726,10 @@ class GameState:
             # CLICK AND DRAG OBJECT TO GRID
             elif (event.type == pygame.MOUSEMOTION and not self.eraser_mode_active):
                 self.update_mouse_pos()
-                if self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT:
+                if(self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT \
+                   and self.mouse_pos[0] >= GameState.HORIZONTAL_GRID_OFFSET and \
+                   self.mouse_pos[0] <= SCREEN_WIDTH-(GameState.HORIZONTAL_GRID_OFFSET+(Grid.GRID_SPACING/2)) and \
+                   self.mouse_pos[1] <= SCREEN_HEIGHT-GameState.BOTTOM_Y_GRID_OFFSET):
                     grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
                     if grid_pos != self.last_placed_pos and not self.is_object_at_position(grid_pos):
                         self.last_placed_pos = grid_pos
