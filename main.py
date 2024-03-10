@@ -297,11 +297,11 @@ class ArrowButton(pygame.sprite.Sprite):
         if direction == "left":
             self.image = images["spr_blue_left_arrow"]
             self.rect = self.image.get_rect()
-            self.rect.topleft = (20, SCREEN_HEIGHT-130)
+            self.rect.topleft = (20, SCREEN_HEIGHT-210)
         elif direction == "right":
             self.image = images["spr_blue_right_arrow"]
             self.rect = self.image.get_rect()
-            self.rect.topleft = (130, SCREEN_HEIGHT-130)
+            self.rect.topleft = (130, SCREEN_HEIGHT-210)
         start_sprites.add(self)
         
 class JumpButton(pygame.sprite.Sprite):
@@ -309,7 +309,7 @@ class JumpButton(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.image = images["spr_jump_button"]
         self.rect = self.image.get_rect()
-        self.rect.topleft = (SCREEN_WIDTH-230, SCREEN_HEIGHT-200)
+        self.rect.topleft = (SCREEN_WIDTH-230, SCREEN_HEIGHT-235)
         start_sprites.add(self)
 
 class StartBlankBox(pygame.sprite.Sprite):
