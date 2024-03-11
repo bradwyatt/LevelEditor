@@ -39,23 +39,37 @@ def create_transparent_surface(width, height):
 
 def load_all_assets():
     #Sprites
-    IMAGES['spr_blank_box'] = create_transparent_surface(24, 24)  # Assuming 24x24 is the size for blank box
+    IMAGES['spr_dynamic_object_placeholder'] = create_transparent_surface(24, 24)  # Assuming 24x24 is the size for dynamic object placeholder
     load_image("sprites/door_closed.png", "spr_door_closed", True)
+    IMAGES['spr_door_closed_start'] = pygame.transform.scale(IMAGES['spr_door_closed'], (48, 72))
     load_image("sprites/door_open.png", "spr_door_open", True)
     load_image("sprites/diamond.png", "spr_diamonds", True)
+    IMAGES['spr_diamonds_start'] = pygame.transform.scale(IMAGES['spr_diamonds'], (48, 48))
     load_image("sprites/wall.png", "spr_wall", True)
+    IMAGES['spr_wall_start'] = pygame.transform.scale(IMAGES['spr_wall'], (48, 48))
     load_image("sprites/reverse_wall.png", "spr_reverse_wall", True)
+    IMAGES['spr_reverse_wall_start'] = pygame.transform.scale(IMAGES['spr_reverse_wall'], (48, 48))
     load_image("sprites/flyer.png", "spr_flyer", True)
+    IMAGES['spr_flyer_start'] = pygame.transform.scale(IMAGES['spr_flyer'], (48, 48))
     load_image("sprites/spring.png", "spr_spring", True)
+    IMAGES['spr_spring_start'] = pygame.transform.scale(IMAGES['spr_spring'], (48, 48))
     load_image("sprites/smily_robot_1.png", "spr_smily_robot", True)
+    IMAGES['spr_smily_robot_start'] = pygame.transform.scale(IMAGES['spr_smily_robot'], (48, 48))
     load_image("sprites/smily_robot_2.png", "spr_smily_robot_2", True)
     load_image("sprites/sticky_block.png", "spr_sticky_block", True)
+    IMAGES['spr_sticky_block_start'] = pygame.transform.scale(IMAGES['spr_sticky_block'], (48, 48))
     load_image("sprites/fall_spikes.png", "spr_fall_spikes", True)
+    IMAGES['spr_fall_spikes_start'] = pygame.transform.scale(IMAGES['spr_fall_spikes'], (48, 48))
     load_image("sprites/stand_spikes.png", "spr_stand_spikes_0_degrees", True)
     IMAGES['spr_stand_spikes_90_degrees'] = pygame.transform.rotate(IMAGES["spr_stand_spikes_0_degrees"], -90)
     IMAGES['spr_stand_spikes_180_degrees'] = pygame.transform.rotate(IMAGES["spr_stand_spikes_0_degrees"], -180)
     IMAGES['spr_stand_spikes_270_degrees'] = pygame.transform.rotate(IMAGES["spr_stand_spikes_0_degrees"], -270)
+    IMAGES['spr_stand_spikes_0_degrees_start'] = pygame.transform.scale(IMAGES['spr_stand_spikes_0_degrees'], (48, 48))
+    IMAGES['spr_stand_spikes_90_degrees_start'] = pygame.transform.scale(IMAGES['spr_stand_spikes_90_degrees'], (48,48))
+    IMAGES['spr_stand_spikes_180_degrees_start'] = pygame.transform.scale(IMAGES['spr_stand_spikes_180_degrees'], (48,48))
+    IMAGES['spr_stand_spikes_270_degrees_start'] = pygame.transform.scale(IMAGES['spr_stand_spikes_270_degrees'], (48,48))
     load_image("sprites/player.png", "spr_player", True)
+    IMAGES['spr_player_start'] = pygame.transform.scale(IMAGES['spr_player'], (40, 72))
     load_image("sprites/player_propeller.png", "spr_player_propeller", True)
     load_image("sprites/play_button.png", "spr_play_button", True)
     load_image("sprites/stop_button.png", "spr_stop_button", True)
@@ -312,62 +326,65 @@ class JumpButton(pygame.sprite.Sprite):
         self.rect.topleft = (SCREEN_WIDTH-230, SCREEN_HEIGHT-235)
         start_sprites.add(self)
 
-class StartBlankBox(pygame.sprite.Sprite):
+class StartDynamicObjectPlaceholder(pygame.sprite.Sprite):
     def __init__(self, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_blank_box"]
+        self.images = images
+        self.image = images["spr_dynamic_object_placeholder"]
         self.rect = self.image.get_rect()
         
     def update(self):
         pass
+    def reset(self):
+        self.image = self.images["spr_dynamic_object_placeholder"]
+        GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
     def flip_start_sprite(self, dragging, pos, images, rotate=0):
         self.rect.topleft = pos
         if dragging.player:
-            self.image = images["spr_player"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_player", pos)
+            self.image = images["spr_player_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_player_start", pos)
         elif dragging.wall:
-            self.image = images["spr_wall"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_wall", pos)
+            self.image = images["spr_wall_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_wall_start", pos)
         elif dragging.diamonds:
-            self.image = images["spr_diamonds"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_diamonds", pos)
+            self.image = images["spr_diamonds_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_diamonds_start", pos)
         elif dragging.door:
-            self.image = images["spr_door_closed"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_door_closed", pos)
+            self.image = images["spr_door_closed_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_door_closed_start", pos)
         elif dragging.flyer:
-            self.image = images["spr_flyer"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_flyer", pos)
+            self.image = images["spr_flyer_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_flyer_start", pos)
         elif dragging.reverse_wall:
-            self.image = images["spr_reverse_wall"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_reverse_wall", pos)
+            self.image = images["spr_reverse_wall_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_reverse_wall_start", pos)
         elif dragging.smily_robot:
-            self.image = images["spr_smily_robot"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_smily_robot", pos)
+            self.image = images["spr_smily_robot_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_smily_robot_start", pos)
         elif dragging.spring:
-            self.image = images["spr_spring"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_spring", pos)
+            self.image = images["spr_spring_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_spring_start", pos)
         elif dragging.sticky_block:
-            self.image = images["spr_sticky_block"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_sticky_block", pos)
+            self.image = images["spr_sticky_block_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_sticky_block_start", pos)
         elif dragging.fall_spikes:
-            self.image = images["spr_fall_spikes"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_fall_spikes", pos)
+            self.image = images["spr_fall_spikes_start"]
+            GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_fall_spikes_start", pos)
         elif dragging.stand_spikes:
             if rotate == 0:
-                self.image = images["spr_stand_spikes_0_degrees"]
-                GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_0_degrees", pos)
+                self.image = images["spr_stand_spikes_0_degrees_start"]
+                GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_0_degrees_start", pos)
             elif rotate == 90:
-                self.image = images["spr_stand_spikes_90_degrees"]
-                GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_90_degrees", pos)
+                self.image = images["spr_stand_spikes_90_degrees_start"]
+                GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_90_degrees_start", pos)
             elif rotate == 180:
-                self.image = images["spr_stand_spikes_180_degrees"]
-                GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_180_degrees", pos)
+                self.image = images["spr_stand_spikes_180_degrees_start"]
+                GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_180_degrees_start", pos)
             elif rotate == 270:
-                self.image = images["spr_stand_spikes_270_degrees"]
-                GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_270_degrees", pos)
+                self.image = images["spr_stand_spikes_270_degrees_start"]
+                GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = ("spr_stand_spikes_270_degrees_start", pos)
         else:
-            self.image = images["spr_blank_box"]
-            GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
+            self.image = images["spr_dynamic_object_placeholder"]
 
 class PlayEditSwitchButton(pygame.sprite.Sprite):
     def __init__(self, pos, GAME_MODE_SPRITES, images):
@@ -428,8 +445,8 @@ class Dragging():
 
 class Start():
     def __init__(self, start_sprites, start_positions):
-        self.blank_box = StartBlankBox(IMAGES)
-        start_sprites.add(self.blank_box)
+        self.dynamic_object_placeholder = StartDynamicObjectPlaceholder(IMAGES)
+        start_sprites.add(self.dynamic_object_placeholder)
         self.player = StartPlayer(start_positions['player'], IMAGES)
         start_sprites.add(self.player)
         self.wall = StartWall(start_positions['wall'], IMAGES)
@@ -455,23 +472,23 @@ class Start():
         
 class GameState:
     EDIT_MODE, PLAY_MODE = 0, 1
-    START_POSITIONS = {'player': (10, 4), 'wall': (40, 12), 'reverse_wall': (102, 12),
-                'spring': (255, 12), 'flyer': (130, 12), 'smily_robot': (162, 12),
-                'door': (195, 2), 'diamonds': (225, 14), 'sticky_block': (70, 12),
-                'fall_spikes': (290, 12), 'stand_spikes': (320, 12)}
+    START_POSITIONS = {'player': (10, 4), 'wall': (270, 12), 'reverse_wall': (405, 12),
+                'spring': (205, 12), 'flyer': (525, 12), 'smily_robot': (465, 12),
+                'door': (75, 2), 'diamonds': (140, 14), 'sticky_block': (337, 12),
+                'fall_spikes': (590, 12), 'stand_spikes': (650, 12)}
     UI_ELEMENTS_POSITIONS = {'play_edit_switch_button': (SCREEN_WIDTH-50, 8),
-                             'eraser_button': (SCREEN_WIDTH-355,10),
+                             'eraser_button': (SCREEN_WIDTH-100,50),
                              'clear_button': (SCREEN_WIDTH-115, 10),
                              'info_button': (SCREEN_WIDTH-250, 10),
                              'grid_button': (SCREEN_WIDTH-150, 10),
                              'restart_button': (SCREEN_WIDTH-175, 10),
                              'save_file_button': (SCREEN_WIDTH-425, 10),
                              'load_file_button': (SCREEN_WIDTH-390, 10),
-                             'rotate_button': (348, 7)}
+                             'rotate_button': (700, 7)}
     TOP_UI_BOUNDARY_Y_HEIGHT = 90
     HORIZONTAL_GRID_OFFSET = 250
     BOTTOM_Y_GRID_OFFSET = 5
-    BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
+    DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
     
     def __init__(self):
         pygame.init()
@@ -562,7 +579,6 @@ class GameState:
             if(event.type == MOUSEBUTTONDOWN 
                and pygame.mouse.get_pressed()[0] 
                and self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT): 
-                # DRAG (only for menu and inanimate buttons at top)
                 if self.game_mode == GameState.EDIT_MODE:
                     # BUTTONS
                     if self.grid_button.rect.collidepoint(self.mouse_pos):
@@ -574,89 +590,54 @@ class GameState:
                         self.dragging.dragging_all_false()
                         self.is_an_object_currently_being_dragged = False
                         self.toggle_eraser_mode()
-                        GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
+                        GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
                     if not MOBILE_ACCESSIBILITY_MODE:
                         if self.save_file_button.rect.collidepoint(self.mouse_pos):
                             save_file()
                         if self.load_file_button.rect.collidepoint(self.mouse_pos):
                             self.placed_sprites = load_file(self.placed_sprites, self)
                     
-                    # DRAG
+                    # Click on Start object at top (which will then drag to mouse cursor)
                     # Restarts all drag objects
+
                     if not self.eraser_mode_active:
-                        if self.start.player.rect.collidepoint(self.mouse_pos):
-                            # Checks for if there is already a player placed on level
-                            if self.placed_player is None:
-                                self.dragging.dragging_all_false()
-                                self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                                self.dragging.player = True
-                                self.is_an_object_currently_being_dragged = True
-                                self.start.blank_box.flip_start_sprite(self.dragging, self.start.player.rect.topleft, IMAGES)
-                            else:
-                                print("Error: Too many players")
-                        elif self.start.door.rect.collidepoint(self.mouse_pos):
-                            if self.placed_door is None:
-                                self.dragging.dragging_all_false()
-                                self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                                self.dragging.door = True
-                                self.is_an_object_currently_being_dragged = True
-                                self.start.blank_box.flip_start_sprite(self.dragging, self.start.door.rect.topleft, IMAGES)
-                            else:
-                                print("Error: Only one exit allowed")
-                        elif self.start.wall.rect.collidepoint(self.mouse_pos):
-                            self.dragging.dragging_all_false()
-                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.wall = True
-                            self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.wall.rect.topleft, IMAGES)
-                        elif self.start.flyer.rect.collidepoint(self.mouse_pos):
-                            self.dragging.dragging_all_false()
-                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.flyer = True
-                            self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.flyer.rect.topleft, IMAGES)
-                        elif self.start.reverse_wall.rect.collidepoint(self.mouse_pos):
-                            self.dragging.dragging_all_false()
-                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.reverse_wall = True
-                            self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.reverse_wall.rect.topleft, IMAGES)
-                        elif self.start.spring.rect.collidepoint(self.mouse_pos):
-                            self.dragging.dragging_all_false()
-                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.spring = True
-                            self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.spring.rect.topleft, IMAGES)
-                        elif self.start.smily_robot.rect.collidepoint(self.mouse_pos):
-                            self.dragging.dragging_all_false()
-                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.smily_robot = True
-                            self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.smily_robot.rect.topleft, IMAGES)
-                        elif self.start.diamonds.rect.collidepoint(self.mouse_pos):
-                            self.dragging.dragging_all_false()
-                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.diamonds = True
-                            self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.diamonds.rect.topleft, IMAGES)
-                        elif self.start.sticky_block.rect.collidepoint(self.mouse_pos):
-                            self.dragging.dragging_all_false()
-                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.sticky_block = True
-                            self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.sticky_block.rect.topleft, IMAGES)
-                        elif self.start.fall_spikes.rect.collidepoint(self.mouse_pos):
-                            self.dragging.dragging_all_false()
-                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.fall_spikes = True
-                            self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.fall_spikes.rect.topleft, IMAGES)
-                        elif self.start.stand_spikes.rect.collidepoint(self.mouse_pos):
-                            self.dragging.dragging_all_false()
-                            self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                            self.dragging.stand_spikes = True
-                            self.is_an_object_currently_being_dragged = True
-                            self.start.blank_box.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES, self.rotate_button.current_stand_spikes_rotate)
+                        def click_to_drag():
+                            start_objects = {'player': self.start.player,
+                                             'door': self.start.door,
+                                             'wall': self.start.wall,
+                                             'flyer': self.start.flyer,
+                                             'reverse_wall': self.start.reverse_wall,
+                                             'spring': self.start.spring,
+                                             'smily_robot': self.start.smily_robot,
+                                             'diamonds': self.start.diamonds,
+                                             'sticky_block': self.start.sticky_block,
+                                             'fall_spikes': self.start.fall_spikes,
+                                             'stand_spikes': self.start.stand_spikes}
+                            for start_object_key, start_object_value in start_objects.items():
+                                if start_object_value.rect.collidepoint(self.mouse_pos):
+                                    self.dragging.dragging_all_false()
+                                    self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                                    setattr(self.dragging, start_object_key, True)
+                                    self.is_an_object_currently_being_dragged = True
+                                    if start_object_key == 'player':
+                                        if self.placed_player is None:
+                                            self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, start_object_value.rect.topleft, IMAGES)
+                                            self.start.player.toggle_image_start_or_drag(self.dragging.player)
+                                        else:
+                                            print("Error: Too many players")
+                                    elif start_object_key == 'door':
+                                        if self.placed_door is None:
+                                            self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, start_object_value.rect.topleft, IMAGES)
+                                            self.start.door.toggle_image_start_or_drag(self.dragging.door)
+                                        else:
+                                            print("Error: Only one exit allowed")
+                                    elif start_object_key == 'stand_spikes':
+                                        self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES, self.rotate_button.current_stand_spikes_rotate)
+                                    else:
+                                        self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, start_object_value.rect.topleft, IMAGES)
+                                    return  # Exit after the first match
+                        
+                        click_to_drag()
                         
             #################
             # LEFT CLICK (PRESSED DOWN)
@@ -720,7 +701,8 @@ class GameState:
                     self.dragging.dragging_all_false()
                     self.start = restart_start_objects(self.start, self.START_POSITIONS)
                     self.is_an_object_currently_being_dragged = False
-                    GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
+                    GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
+                    self.start.dynamic_object_placeholder.reset()
                 else:
                     # No object is currently being dragged, attempt to delete object at grid position
                     remove_placed_object(self.placed_sprites, self.mouse_pos, self)
@@ -811,8 +793,9 @@ class GameState:
                         # REMOVE ALL SPRITES
                         remove_all_placed(self)
                 if self.rotate_button.rect.collidepoint(self.mouse_pos):
-                    self.rotate_button.current_stand_spikes_rotate = (self.rotate_button.current_stand_spikes_rotate + 90) % 360
-                    self.start.stand_spikes.change_image_rotation(self.rotate_button.current_stand_spikes_rotate)
+                    if not self.dragging.stand_spikes:
+                        self.rotate_button.current_stand_spikes_rotate = (self.rotate_button.current_stand_spikes_rotate + 90) % 360
+                        self.start.stand_spikes.change_image_rotation(self.rotate_button.current_stand_spikes_rotate)
 
     def toggle_eraser_mode(self):
         # Toggle the eraser mode state
@@ -841,7 +824,7 @@ class GameState:
         # Remove all drag within current edit mode
         self.dragging.dragging_all_false()
         self.is_an_object_currently_being_dragged = False
-        GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
+        GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
         # Makes sure there is at least one player to play game
         if self.placed_player:
             # Makes clicking play again unclickable
@@ -874,19 +857,21 @@ class GameState:
         else:
             print("You need a character!")
     def edit_mode_function(self):
+        # DRAG- switch dynamic object placeholder with player sprite and vice versa
         if self.dragging.player and self.placed_player is None:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['player'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['player'] # Replaces in Menu
             self.start.player.rect.topleft = (self.mouse_pos[0]-(self.start.player.image.get_width()/2),
                                          self.mouse_pos[1]-(self.start.player.image.get_height()/3))
         else:
+            # Player is no longer being dragged, restore the start image and position of the start player
             self.dragging.player = False
             self.start.player.rect.topleft = self.START_POSITIONS['player']
             # Player was placed in game world already but not currently being dragged
-            if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS:
-                if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS[0] == 'spr_player':
-                    GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
+            if GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS:
+                if GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS[0] == 'spr_player_start':
+                    GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
         if self.dragging.door and self.placed_door is None:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['door'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['door'] # Replaces in Menu
             self.start.door.rect.topleft = (self.mouse_pos[0]-(self.start.door.image.get_width()/2),
                                        self.mouse_pos[1]-(self.start.door.image.get_height()/4))
             self.start.door.image = IMAGES["spr_door_closed"]
@@ -894,63 +879,77 @@ class GameState:
             self.dragging.door = False
             self.start.door.rect.topleft = self.START_POSITIONS['door']
             # Door was placed in game world already but not currently being dragged
-            if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS:
-                if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS[0] == 'spr_door_closed':
-                    GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS = None
+            if GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS:
+                if GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS[0] == 'spr_door_closed_start':
+                    GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
         if self.dragging.wall:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['wall'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['wall'] # Replaces in Menu
             self.start.wall.rect.topleft = (self.mouse_pos[0]-(self.start.wall.image.get_width()/2),
                                        self.mouse_pos[1]-(self.start.wall.image.get_height()/2))
         else:
             self.start.wall.rect.topleft = self.START_POSITIONS['wall']
+            
         if self.dragging.reverse_wall:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['reverse_wall'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['reverse_wall'] # Replaces in Menu
             self.start.reverse_wall.rect.topleft = (self.mouse_pos[0]-(self.start.reverse_wall.image.get_width()/2),
                                                self.mouse_pos[1]-(self.start.reverse_wall.image.get_height()/2))
         else:
             self.start.reverse_wall.rect.topleft = self.START_POSITIONS['reverse_wall']
         if self.dragging.diamonds:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['diamonds'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['diamonds'] # Replaces in Menu
             self.start.diamonds.rect.topleft = (self.mouse_pos[0]-(self.start.diamonds.image.get_width()/2),
                                            self.mouse_pos[1]-(self.start.diamonds.image.get_height()/2))
         else:
             self.start.diamonds.rect.topleft = self.START_POSITIONS['diamonds']
         if self.dragging.flyer:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['flyer'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['flyer'] # Replaces in Menu
             self.start.flyer.rect.topleft = (self.mouse_pos[0]-(self.start.flyer.image.get_width()/2),
                                         self.mouse_pos[1]-(self.start.flyer.image.get_height()/2))
         else:
             self.start.flyer.rect.topleft = self.START_POSITIONS['flyer']
         if self.dragging.smily_robot:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['smily_robot'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['smily_robot'] # Replaces in Menu
             self.start.smily_robot.rect.topleft = (self.mouse_pos[0]-(self.start.smily_robot.image.get_width()/2),
                                               self.mouse_pos[1]-(self.start.smily_robot.image.get_height()/2))
         else:
             self.start.smily_robot.rect.topleft = self.START_POSITIONS['smily_robot']
         if self.dragging.spring:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['spring'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['spring'] # Replaces in Menu
             self.start.spring.rect.topleft = (self.mouse_pos[0]-(self.start.spring.image.get_width()/2),
                                          self.mouse_pos[1]-(self.start.spring.image.get_height()/2))
         else:
             self.start.spring.rect.topleft = self.START_POSITIONS['spring']
         if self.dragging.sticky_block:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['sticky_block'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['sticky_block'] # Replaces in Menu
             self.start.sticky_block.rect.topleft = (self.mouse_pos[0]-(self.start.sticky_block.image.get_width()/2),
                                                self.mouse_pos[1]-(self.start.sticky_block.image.get_height()/2))
         else:
             self.start.sticky_block.rect.topleft = self.START_POSITIONS['sticky_block']
         if self.dragging.fall_spikes:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['fall_spikes'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['fall_spikes'] # Replaces in Menu
             self.start.fall_spikes.rect.topleft = (self.mouse_pos[0]-(self.start.fall_spikes.image.get_width()/2),
                                               self.mouse_pos[1]-(self.start.fall_spikes.image.get_height()/2))
         else:
             self.start.fall_spikes.rect.topleft = self.START_POSITIONS['fall_spikes']
         if self.dragging.stand_spikes:
-            self.start.blank_box.rect.topleft = self.START_POSITIONS['stand_spikes'] # Replaces in Menu
+            self.start.dynamic_object_placeholder.rect.topleft = self.START_POSITIONS['stand_spikes'] # Replaces in Menu
             self.start.stand_spikes.rect.topleft = (self.mouse_pos[0]-(self.start.stand_spikes.image.get_width()/2),
                                                self.mouse_pos[1]-(self.start.stand_spikes.image.get_height()/2))
         else:
             self.start.stand_spikes.rect.topleft = self.START_POSITIONS['stand_spikes']
+        # When the start object is being dragged, then it is the original image size
+        # When the start object is not being dragged, it is at a bigger size
+        self.start.player.toggle_image_start_or_drag(self.dragging.player)
+        self.start.door.toggle_image_start_or_drag(self.dragging.door)
+        self.start.wall.toggle_image_start_or_drag(self.dragging.wall)
+        self.start.reverse_wall.toggle_image_start_or_drag(self.dragging.reverse_wall)
+        self.start.diamonds.toggle_image_start_or_drag(self.dragging.diamonds)
+        self.start.flyer.toggle_image_start_or_drag(self.dragging.flyer)
+        self.start.smily_robot.toggle_image_start_or_drag(self.dragging.smily_robot)
+        self.start.spring.toggle_image_start_or_drag(self.dragging.spring)
+        self.start.sticky_block.toggle_image_start_or_drag(self.dragging.sticky_block)
+        self.start.fall_spikes.toggle_image_start_or_drag(self.dragging.fall_spikes)
+        self.start.stand_spikes.toggle_image_start_or_drag(self.dragging.stand_spikes)
     def play_mode_function(self):
         # Dead
         if self.play_player.rect.top > SCREEN_HEIGHT and self.play_player.speed_y >= 0:
@@ -1003,7 +1002,7 @@ class GameState:
         for play_diamonds in PlayDiamonds.diamonds_list:
             if pygame.sprite.collide_mask(self.play_player, play_diamonds):
                 self.play_player.score += 1
-                play_diamonds.image = IMAGES["spr_blank_box"]
+                play_diamonds.image = IMAGES["spr_dynamic_object_placeholder"]
         for spring in PlaySpring.spring_list:
             if pygame.sprite.collide_mask(self.play_player, spring):
                 # Check if the collision is primarily on top of the spring
@@ -1080,7 +1079,7 @@ def get_dict_rect_positions(game_state):
     get_rect_for_all_obj = {'player': player_position,
                             'door': door_position}
 
-    # Loop through all lists of placed objects (except player)
+    # Loop through all lists of placed objects (except player and door)
     for item_key, item_list in total_placed_list.items():
         item_list_in_name = [item.rect.topleft for item in item_list]
         get_rect_for_all_obj[item_key] = item_list_in_name
@@ -1207,8 +1206,8 @@ def main():
                     eraser_cursor_image = IMAGES["spr_eraser_cursor"]
                     game_state.screen.blit(eraser_cursor_image, (mouse_x-4, mouse_y-4))
                 # Draw yellow outline around start object being dragged
-                if GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS is not None:
-                    sprite_name, pos = GameState.BLANK_BOX_YELLOW_OUTLINE_OBJ_AND_POS
+                if GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS is not None:
+                    sprite_name, pos = GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS
                     draw_yellow_outline(SCREEN, IMAGES[sprite_name], pos, thickness=1)
                 left_arrow = ArrowButton(game_state.start_sprites, IMAGES, "left")
                 right_arrow = ArrowButton(game_state.start_sprites, IMAGES, "right")
