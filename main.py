@@ -476,11 +476,11 @@ class GameState:
                 'spring': (205, 12), 'flyer': (525, 12), 'smily_robot': (465, 12),
                 'door': (75, 2), 'diamonds': (140, 14), 'sticky_block': (337, 12),
                 'fall_spikes': (590, 12), 'stand_spikes': (650, 12)}
-    UI_ELEMENTS_POSITIONS = {'play_edit_switch_button': (SCREEN_WIDTH-50, 8),
-                             'eraser_button': (SCREEN_WIDTH-100,50),
-                             'clear_button': (SCREEN_WIDTH-115, 10),
-                             'info_button': (SCREEN_WIDTH-250, 10),
-                             'grid_button': (SCREEN_WIDTH-150, 10),
+    UI_ELEMENTS_POSITIONS = {'play_edit_switch_button': (SCREEN_WIDTH-80, 8),
+                             'eraser_button': (SCREEN_WIDTH-250, 7),
+                             'clear_button': (SCREEN_WIDTH-250, 300),
+                             'info_button': (SCREEN_WIDTH-250, 100),
+                             'grid_button': (SCREEN_WIDTH-250, 200),
                              'restart_button': (SCREEN_WIDTH-175, 10),
                              'save_file_button': (SCREEN_WIDTH-425, 10),
                              'load_file_button': (SCREEN_WIDTH-390, 10),
@@ -1209,15 +1209,15 @@ def main():
                 if GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS is not None:
                     sprite_name, pos = GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS
                     draw_yellow_outline(SCREEN, IMAGES[sprite_name], pos, thickness=1)
-                left_arrow = ArrowButton(game_state.start_sprites, IMAGES, "left")
-                right_arrow = ArrowButton(game_state.start_sprites, IMAGES, "right")
-                jump_button = JumpButton(game_state.start_sprites, IMAGES)
-                
+
             elif game_state.game_mode == game_state.PLAY_MODE: #Only draw play sprites in play mode
                 if game_state.eraser_mode_active:
                     game_state.toggle_eraser_mode()
                 game_state.play_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("Deaths: " + str(game_state.play_player.death_count), 1, (0, 0, 0))
+                #left_arrow = ArrowButton(game_state.play_sprites, IMAGES, "left")
+                #right_arrow = ArrowButton(game_state.play_sprites, IMAGES, "right")
+                #jump_button = JumpButton(game_state.play_sprites, IMAGES)
             SCREEN.blit(DEATH_COUNT_TEXT, ((SCREEN_WIDTH/2-50), 5))
 
             pygame.display.update()
