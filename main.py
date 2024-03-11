@@ -570,16 +570,13 @@ class GameState:
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1: # Left click release
                 self.is_dragging = False
                 self.last_placed_pos = None  # Clear the last placed position when releasing the button
-
-
-                    
+            
             #################
-            # LEFT CLICK (PRESSED DOWN) at Top of Screen
+            # LEFT CLICK (PRESSED DOWN) on right side (menu buttons)
             #################
             if(event.type == MOUSEBUTTONDOWN 
                and pygame.mouse.get_pressed()[0] 
-               and self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT): 
-                if self.game_mode == GameState.EDIT_MODE:
+               and self.mouse_pos[0] > SCREEN_WIDTH-GameState.HORIZONTAL_GRID_OFFSET): 
                     # BUTTONS
                     if self.grid_button.rect.collidepoint(self.mouse_pos):
                         if Grid.ALL_GRIDS_ENABLED:
@@ -596,10 +593,15 @@ class GameState:
                             save_file()
                         if self.load_file_button.rect.collidepoint(self.mouse_pos):
                             self.placed_sprites = load_file(self.placed_sprites, self)
-                    
+            #################
+            # LEFT CLICK (PRESSED DOWN) at Top of Screen (start objects)
+            #################
+            if(event.type == MOUSEBUTTONDOWN 
+               and pygame.mouse.get_pressed()[0] 
+               and self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT): 
+                if self.game_mode == GameState.EDIT_MODE:
                     # Click on Start object at top (which will then drag to mouse cursor)
                     # Restarts all drag objects
-
                     if not self.eraser_mode_active:
                         def click_to_drag():
                             start_objects = {'player': self.start.player,
@@ -1097,10 +1099,12 @@ def remove_all_placed(game_state):
                      PlacedFallSpikes.fall_spikes_list, PlacedStandSpikes.stand_spikes_list]:
         for obj in spr_list:
             obj.kill()
-    game_state.placed_player.kill()
-    game_state.placed_player = None
-    game_state.placed_door.kill()
-    game_state.placed_door = None
+    if game_state.placed_player:
+        game_state.placed_player.kill()
+        game_state.placed_player = None
+    if game_state.placed_door:
+        game_state.placed_door.kill()
+        game_state.placed_door = None
     PlacedWall.wall_list = []
     PlacedFlyer.flyer_list = []
     PlacedReverseWall.reverse_wall_list = []
