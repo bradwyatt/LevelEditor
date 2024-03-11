@@ -854,6 +854,10 @@ class GameState:
                 PlayFallSpikes(placed_fall_spikes.rect.topleft, self.play_sprites, IMAGES)
             for placed_stand_spikes in PlacedStandSpikes.stand_spikes_list:
                 PlayStandSpikes(placed_stand_spikes.rect.topleft, self.play_sprites, IMAGES, placed_stand_spikes.rotate)
+            
+            left_arrow = ArrowButton(self.play_sprites, IMAGES, "left")
+            right_arrow = ArrowButton(self.play_sprites, IMAGES, "right")
+            jump_button = JumpButton(self.play_sprites, IMAGES)
         else:
             print("You need a character!")
     def edit_mode_function(self):
@@ -1215,9 +1219,6 @@ def main():
                     game_state.toggle_eraser_mode()
                 game_state.play_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("Deaths: " + str(game_state.play_player.death_count), 1, (0, 0, 0))
-                #left_arrow = ArrowButton(game_state.play_sprites, IMAGES, "left")
-                #right_arrow = ArrowButton(game_state.play_sprites, IMAGES, "right")
-                #jump_button = JumpButton(game_state.play_sprites, IMAGES)
             SCREEN.blit(DEATH_COUNT_TEXT, ((SCREEN_WIDTH/2-50), 5))
 
             pygame.display.update()
