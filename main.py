@@ -524,6 +524,8 @@ class GameState:
         self.mouse_button_down = False
         self.moving_left = False
         self.moving_right = False
+        self.want_to_jump = False
+        self.jump_key_released = True
         self.jumping = False
 
     def update_mouse_pos(self):
@@ -554,9 +556,40 @@ class GameState:
             self.start_sprites.add(self.load_file_button)
         self.rotate_button = RotateButton(self.UI_ELEMENTS_POSITIONS['rotate_button'], IMAGES)
         self.start_sprites.add(self.rotate_button)
+        
+    def handle_play_mode_events(self, event):
+        # Mouse button down events
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.mouse_button_down = True
+            if self.left_arrow_button.rect.collidepoint(event.pos):
+                self.moving_left = True
+            elif self.right_arrow_button.rect.collidepoint(event.pos):
+                self.moving_right = True
+            elif self.jump_button.rect.collidepoint(event.pos) and self.play_player.can_jump():
+                self.want_to_jump = True
+            
+        # Mouse button up events
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.mouse_button_down = False
+            self.reset_movement_flags(event.pos)
+            
+        # Mouse motion events
+        elif event.type == pygame.MOUSEMOTION and self.mouse_button_down:
+            self.update_movement_directions_based_on_mouse_position(event.pos)
+            
+    def reset_movement_flags(self, pos):
+        if self.left_arrow_button.rect.collidepoint(pos):
+            self.moving_left = False
+        elif self.right_arrow_button.rect.collidepoint(pos):
+            self.moving_right = False
+        self.want_to_jump = False  # Stop jumping when any button is released
+        
+    def update_movement_directions_based_on_mouse_position(self, pos):
+        self.moving_left = self.left_arrow_button.rect.collidepoint(pos)
+        self.moving_right = self.right_arrow_button.rect.collidepoint(pos)
+        # No jump updates here since jumping is a one-time action per click
             
     def handle_events(self):
-        self.handle_player_input()  # Process player inputs first
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -579,29 +612,14 @@ class GameState:
                     self.last_placed_pos = None  # Clear the last placed position when releasing the button
             elif self.game_mode == GameState.PLAY_MODE:
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    self.mouse_button_down = True
-                    if self.left_arrow_button.rect.collidepoint(event.pos):
-                        self.moving_left = True
-                    elif self.right_arrow_button.rect.collidepoint(event.pos):
-                        self.moving_right = True
-                    if self.jump_button.rect.collidepoint(event.pos):
-                        # Mimic keyboard jump logic
-                        if self.play_player.can_jump():  # Assuming this method checks if jumps are available
-                            self.play_player.jump()
+                    # Mouse Button Down Events
+                    self.handle_mouse_down_events(event)
                 elif event.type == pygame.MOUSEBUTTONUP:
-                    self.mouse_button_down = False
-                    if self.left_arrow_button.rect.collidepoint(event.pos):
-                        self.moving_left = False
-                    elif self.right_arrow_button.rect.collidepoint(event.pos):
-                        self.moving_right = False
-                elif event.type == pygame.MOUSEMOTION and self.mouse_button_down:
-                    # Update movement directions based on mouse movement while holding down the button
-                    if self.left_arrow_button.rect.collidepoint(event.pos):
-                        self.moving_left = True
-                        self.moving_right = False
-                    elif self.right_arrow_button.rect.collidepoint(event.pos):
-                        self.moving_right = True
-                        self.moving_left = False
+                    # Mouse Button Up Events
+                    self.handle_mouse_up_events(event)
+                elif event.type == pygame.MOUSEMOTION:
+                    # Mouse Motion Events
+                    self.handle_mouse_motion_events(event)
 
             
             #################
@@ -832,6 +850,35 @@ class GameState:
                         self.rotate_button.current_stand_spikes_rotate = (self.rotate_button.current_stand_spikes_rotate + 90) % 360
                         self.start.stand_spikes.change_image_rotation(self.rotate_button.current_stand_spikes_rotate)
 
+    def handle_mouse_down_events(self, event):
+        self.mouse_button_down = True
+        # Checks if the mouse interacts with movement buttons
+        if self.left_arrow_button.rect.collidepoint(event.pos):
+            self.moving_left = True
+        elif self.right_arrow_button.rect.collidepoint(event.pos):
+            self.moving_right = True
+        elif self.jump_button.rect.collidepoint(event.pos) and self.play_player.can_jump():
+            self.play_player.jump()
+    
+    def handle_mouse_up_events(self, event):
+        # Mouse button is released
+        self.mouse_button_down = False
+        # Stop movement if the mouse button is released over any arrow button
+        if self.left_arrow_button.rect.collidepoint(event.pos) or self.right_arrow_button.rect.collidepoint(event.pos) or self.right_arrow_button.rect.collidepoint(event.pos):
+            self.moving_left = False
+            self.moving_right = False
+            self.play_player.stop()  # This will halt the player's movement
+        
+    def handle_mouse_motion_events(self, event):
+        # Update movement directions based on cursor position during drag
+        if self.mouse_button_down:  # Ensure this is only active if the mouse button is currently pressed
+            if self.left_arrow_button.rect.collidepoint(event.pos):
+                self.moving_left = True
+                self.moving_right = False
+            elif self.right_arrow_button.rect.collidepoint(event.pos):
+                self.moving_left = False
+                self.moving_right = True
+    
     def toggle_eraser_mode(self):
         # Toggle the eraser mode state
         self.eraser_mode_active = not self.eraser_mode_active
@@ -1085,38 +1132,40 @@ class GameState:
         self.start.sticky_block.rect.topleft = self.START_POSITIONS['sticky_block']
         self.start.fall_spikes.rect.topleft = self.START_POSITIONS['fall_spikes']
         self.start.stand_spikes.rect.topleft = self.START_POSITIONS['stand_spikes']
+        
     def handle_player_input(self):
-        # This method will now also check for mouse-driven input states for movement and jumping
-        if self.play_player and not self.is_paused:
-            keys_pressed = pygame.key.get_pressed()
-    
-            # Keyboard input for jump - unchanged
-            if keys_pressed[pygame.K_UP] and self.jump_key_released:
+        keys_pressed = pygame.key.get_pressed()
+
+        if keys_pressed[pygame.K_UP]:
+            if self.jump_key_released and self.play_player.can_jump():
                 self.play_player.jump()
                 self.jump_key_released = False
-            elif not keys_pressed[pygame.K_UP]:
-                self.jump_key_released = True  # Prepare for the next jump
-    
-            # Keyboard input for movement - unchanged
-            if keys_pressed[pygame.K_LEFT]:
-                self.play_player.move_left()
-            elif keys_pressed[pygame.K_RIGHT]:
-                self.play_player.move_right()
-            else:
-                # Stop moving if no left/right keys are pressed and no mouse movement is detected
-                if not self.moving_left and not self.moving_right:
-                    self.play_player.stop()
-    
-            # Handling continuous actions based on state set by mouse input
+        else:
+            self.jump_key_released = True
+
+        if self.moving_left:
+            self.play_player.move_left()
+        elif self.moving_right:
+            self.play_player.move_right()
+        else:
+            # Only stop the player if no keyboard keys are pressed
+            if not keys_pressed[pygame.K_LEFT] and not keys_pressed[pygame.K_RIGHT]:
+                self.play_player.stop()
+            
+    def handle_keyboard_movement(self, keys_pressed):
+        # Handle left/right movement from keyboard
+        if keys_pressed[pygame.K_LEFT]:
+            self.play_player.move_left()
+        elif keys_pressed[pygame.K_RIGHT]:
+            self.play_player.move_right()
+        else:
+            # If no keyboard input for movement, check for mouse movement input
             if self.moving_left:
                 self.play_player.move_left()
-            if self.moving_right:
+            elif self.moving_right:
                 self.play_player.move_right()
-            if self.jumping:
-                # Implement logic to allow jumping only once per button press, similar to keyboard handling
-                if self.jump_key_released:
-                    self.play_player.jump()
-                    self.jump_key_released = False  # Avoid continuous jumps
+            else:
+                self.play_player.stop()  # Stop if no movement input from either keyboard or mouse
 
 # Returns the tuples of each objects' positions within all classes
 def get_dict_rect_positions(game_state):
