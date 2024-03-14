@@ -603,11 +603,6 @@ class GameState:
                         self.moving_right = True
                         self.moving_left = False
 
-        
-            # Handle continuous jump button pressing
-            if self.jumping and not self.mouse_button_down:
-                self.jumping = False
-
             
             #################
             # LEFT CLICK (PRESSED DOWN) on right side (menu buttons)
