@@ -337,10 +337,10 @@ class PlayPlayer(PlayObject):
             self.speed_y = 0
             self.propeller = 0
         self.animate_images()
-    def go_left(self):
+    def move_left(self):
         self.speed_x = -self.MOVE_SPEED
         self.last_pressed_r = 0  # Indicates moving left
-    def go_right(self):
+    def move_right(self):
         self.speed_x = self.MOVE_SPEED
         self.last_pressed_r = 1  # Indicates moving right
     def stop(self):
