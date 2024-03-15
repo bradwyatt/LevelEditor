@@ -589,6 +589,14 @@ class GameState:
                 elif self.right_arrow_button.rect.collidepoint(event.pos):
                     self.moving_right = True
                     self.moving_left = False
+                    
+        # Add FINGERDOWN event for jump action
+        elif event.type == pygame.FINGERDOWN:
+            # Convert touch position to Pygame coordinates (assuming full screen)
+            touch_x, touch_y = event.x * SCREEN_WIDTH, event.y * SCREEN_HEIGHT
+            # Check if the touch is within the jump button's rectangle
+            if self.jump_button.rect.collidepoint(touch_x, touch_y):
+                self.want_to_jump = True
             
     def reset_movement_flags(self, pos):
         if self.left_arrow_button.rect.collidepoint(pos):
@@ -625,14 +633,13 @@ class GameState:
                     self.last_placed_pos = None  # Clear the last placed position when releasing the button
             elif self.game_mode == GameState.PLAY_MODE:
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    # Mouse Button Down Events
                     self.handle_mouse_down_events(event)
                 elif event.type == pygame.MOUSEBUTTONUP:
-                    # Mouse Button Up Events
                     self.handle_mouse_up_events(event)
                 elif event.type == pygame.MOUSEMOTION:
-                    # Mouse Motion Events
                     self.handle_mouse_motion_events(event)
+                elif event.type == pygame.FINGERDOWN:
+                    self.handle_finger_down_events(event)
 
             
             #################
@@ -891,6 +898,14 @@ class GameState:
             elif self.right_arrow_button.rect.collidepoint(event.pos):
                 self.moving_left = False
                 self.moving_right = True
+    
+    def handle_finger_down_events(self, event):
+        # Convert touch position to Pygame coordinates
+        touch_x, touch_y = event.x * SCREEN_WIDTH, event.y * SCREEN_HEIGHT
+    
+        # Check if the touch is within the jump button's rectangle
+        if self.jump_button.rect.collidepoint(touch_x, touch_y):
+            self.want_to_jump = True
     
     def toggle_eraser_mode(self):
         # Toggle the eraser mode state
