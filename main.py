@@ -313,23 +313,39 @@ class InfoScreen():
 class ArrowButton(pygame.sprite.Sprite):
     def __init__(self, start_sprites, images, direction):
         pygame.sprite.Sprite.__init__(self)
+        self.images = images
+        self.direction = direction
         if direction == "left":
-            self.image = images["spr_blue_left_arrow"]
-            self.rect = self.image.get_rect()
+            self.image_inactive = images["spr_blue_left_arrow"]
+            self.image_active = images["spr_blue_left_arrow_active"]
+        elif direction == "right":
+            self.image_inactive = images["spr_blue_right_arrow"]
+            self.image_active = images["spr_blue_right_arrow_active"]
+        self.image = self.image_inactive
+        self.rect = self.image.get_rect()
+        if direction == "left":
             self.rect.topleft = (20, SCREEN_HEIGHT-210)
         elif direction == "right":
-            self.image = images["spr_blue_right_arrow"]
-            self.rect = self.image.get_rect()
             self.rect.topleft = (130, SCREEN_HEIGHT-210)
         start_sprites.add(self)
+    
+    def set_active(self, active):
+        self.image = self.image_active if active else self.image_inactive
+
         
 class JumpButton(pygame.sprite.Sprite):
     def __init__(self, start_sprites, images):
         pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_jump_button"]
+        self.image_inactive = images["spr_jump_button"]
+        self.image_active = images["spr_jump_button_active"]
+        self.image = self.image_inactive
         self.rect = self.image.get_rect()
         self.rect.topleft = (SCREEN_WIDTH-230, SCREEN_HEIGHT-235)
         start_sprites.add(self)
+    
+    def set_active(self, active):
+        self.image = self.image_active if active else self.image_inactive
+
 
 class StartDynamicObjectPlaceholder(pygame.sprite.Sprite):
     def __init__(self, images):
@@ -604,6 +620,8 @@ class GameState:
                     self.handle_mouse_motion_events(event)
                 elif event.type == pygame.FINGERDOWN:
                     self.handle_finger_down_events(event)
+                elif event.type == pygame.FINGERUP:
+                    self.handle_finger_up_events(event)
 
             
             #################
@@ -839,37 +857,60 @@ class GameState:
         # Checks if the mouse interacts with movement buttons
         if self.left_arrow_button.rect.collidepoint(event.pos):
             self.moving_left = True
+            self.left_arrow_button.set_active(True)  # Activate left arrow button image
         elif self.right_arrow_button.rect.collidepoint(event.pos):
             self.moving_right = True
+            self.right_arrow_button.set_active(True)  # Activate right arrow button image
         elif self.jump_button.rect.collidepoint(event.pos) and self.play_player.can_jump():
             self.play_player.jump()
+            self.jump_button.set_active(True)  # Activate jump button image
     
     def handle_mouse_up_events(self, event):
         # Mouse button is released
         self.mouse_button_down = False
+        # Reset arrow buttons to inactive state
+        self.left_arrow_button.set_active(False)
+        self.right_arrow_button.set_active(False)
+        self.jump_button.set_active(False)
+    
         # Stop movement if the mouse button is released over any arrow button
-        if self.left_arrow_button.rect.collidepoint(event.pos) or self.right_arrow_button.rect.collidepoint(event.pos) or self.right_arrow_button.rect.collidepoint(event.pos):
+        if self.left_arrow_button.rect.collidepoint(event.pos) or self.right_arrow_button.rect.collidepoint(event.pos):
             self.moving_left = False
             self.moving_right = False
             self.play_player.stop()  # This will halt the player's movement
         
     def handle_mouse_motion_events(self, event):
-        # Update movement directions based on cursor position during drag
-        if self.mouse_button_down:  # Ensure this is only active if the mouse button is currently pressed
+        # Ensure this is only active if the mouse button is currently pressed
+        if self.mouse_button_down:
+            # Reactivate the appropriate arrow button based on the new position
             if self.left_arrow_button.rect.collidepoint(event.pos):
                 self.moving_left = True
                 self.moving_right = False
+                self.left_arrow_button.set_active(True)
+                self.right_arrow_button.set_active(False)
             elif self.right_arrow_button.rect.collidepoint(event.pos):
                 self.moving_left = False
                 self.moving_right = True
+                self.left_arrow_button.set_active(False)
+                self.right_arrow_button.set_active(True)
     
     def handle_finger_down_events(self, event):
         # Convert touch position to Pygame coordinates
         touch_x, touch_y = event.x * SCREEN_WIDTH, event.y * SCREEN_HEIGHT
     
-        # Check if the touch is within the jump button's rectangle
+        # For touch inputs, specifically handle the jump button activation
         if self.jump_button.rect.collidepoint(touch_x, touch_y):
             self.want_to_jump = True
+            self.jump_button.set_active(True)  # Activate jump button image
+            
+    def handle_finger_up_events(self, event):
+        # Convert the touch position to Pygame coordinates
+        touch_x, touch_y = event.x * SCREEN_WIDTH, event.y * SCREEN_HEIGHT
+    
+        # Check if the touch was within the jump button's rectangle
+        # You might want to track if the jump button was previously activated by this touch
+        if self.jump_button.rect.collidepoint(touch_x, touch_y):
+            self.jump_button.set_active(False)
     
     def toggle_eraser_mode(self):
         # Toggle the eraser mode state
