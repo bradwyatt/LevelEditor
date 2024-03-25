@@ -311,7 +311,7 @@ class InfoScreen():
                         break
 
 class ArrowButton(pygame.sprite.Sprite):
-    def __init__(self, start_sprites, images, direction):
+    def __init__(self, play_sprites, images, direction):
         pygame.sprite.Sprite.__init__(self)
         self.images = images
         self.direction = direction
@@ -327,21 +327,21 @@ class ArrowButton(pygame.sprite.Sprite):
             self.rect.topleft = (20, SCREEN_HEIGHT-210)
         elif direction == "right":
             self.rect.topleft = (130, SCREEN_HEIGHT-210)
-        start_sprites.add(self)
+        play_sprites.add(self)
     
     def set_active(self, active):
         self.image = self.image_active if active else self.image_inactive
 
         
 class JumpButton(pygame.sprite.Sprite):
-    def __init__(self, start_sprites, images):
+    def __init__(self, play_sprites, images):
         pygame.sprite.Sprite.__init__(self)
         self.image_inactive = images["spr_jump_button"]
         self.image_active = images["spr_jump_button_active"]
         self.image = self.image_inactive
         self.rect = self.image.get_rect()
         self.rect.topleft = (SCREEN_WIDTH-230, SCREEN_HEIGHT-235)
-        start_sprites.add(self)
+        play_sprites.add(self)
     
     def set_active(self, active):
         self.image = self.image_active if active else self.image_inactive
@@ -931,6 +931,7 @@ class GameState:
         self.play_player.death_count = 0
         self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
         remove_all_play(self)
+        self.play_sprites.empty()
         self.start = restart_start_objects(self.start, self.START_POSITIONS)
         
         #MUSIC_PLAYER = []
