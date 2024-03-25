@@ -260,7 +260,6 @@ class PlaySpring(PlayObject):
     spring_list = []
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_spring"])
-        pygame.sprite.Sprite.__init__(self)
         self.pos = pos
     def restart(self):
         self.rect.topleft = self.pos
@@ -279,7 +278,6 @@ class PlayPlayer(PlayObject):
     DOUBLE_JUMP_SPEED = -2
     MOVE_SPEED = 4
     def __init__(self, pos, play_sprites, images, sounds):
-        pygame.sprite.Sprite.__init__(self)
         super().__init__(pos, play_sprites, images["spr_player"])
         self.images = images
         self.sounds = sounds
