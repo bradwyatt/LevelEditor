@@ -647,52 +647,55 @@ class GameState:
                         if self.load_file_button.rect.collidepoint(self.mouse_pos):
                             self.placed_sprites = load_file(self.placed_sprites, self)
             #################
-            # LEFT CLICK (PRESSED DOWN) at Top of Screen (start objects)
+            # LEFT CLICK (PRESSED DOWN) at Top of Screen (start objects and left of clear button)
             #################
             if(event.type == MOUSEBUTTONDOWN 
                and pygame.mouse.get_pressed()[0] 
-               and self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT): 
+               and self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT
+               and self.mouse_pos[0] < GameState.UI_ELEMENTS_POSITIONS['clear_button'][0]): 
                 if self.game_mode == GameState.EDIT_MODE:
                     # Click on Start object at top (which will then drag to mouse cursor)
                     # Restarts all drag objects
-                    if not self.eraser_mode_active:
-                        def click_to_drag():
-                            start_objects = {'player': self.start.player,
-                                             'door': self.start.door,
-                                             'wall': self.start.wall,
-                                             'flyer': self.start.flyer,
-                                             'reverse_wall': self.start.reverse_wall,
-                                             'spring': self.start.spring,
-                                             'smily_robot': self.start.smily_robot,
-                                             'diamonds': self.start.diamonds,
-                                             'sticky_block': self.start.sticky_block,
-                                             'fall_spikes': self.start.fall_spikes,
-                                             'stand_spikes': self.start.stand_spikes}
-                            for start_object_key, start_object_value in start_objects.items():
-                                if start_object_value.rect.collidepoint(self.mouse_pos):
-                                    self.dragging.dragging_all_false()
-                                    self.start = restart_start_objects(self.start, self.START_POSITIONS)
-                                    setattr(self.dragging, start_object_key, True)
-                                    self.is_an_object_currently_being_dragged = True
-                                    if start_object_key == 'player':
-                                        if self.placed_player is None:
-                                            self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, start_object_value.rect.topleft, IMAGES)
-                                            self.start.player.toggle_image_start_or_drag(self.dragging.player)
-                                        else:
-                                            print("Error: Too many players")
-                                    elif start_object_key == 'door':
-                                        if self.placed_door is None:
-                                            self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, start_object_value.rect.topleft, IMAGES)
-                                            self.start.door.toggle_image_start_or_drag(self.dragging.door)
-                                        else:
-                                            print("Error: Only one exit allowed")
-                                    elif start_object_key == 'stand_spikes':
-                                        self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES, self.rotate_button.current_stand_spikes_rotate)
-                                    else:
+                    if self.eraser_mode_active:
+                        # Turn off eraser mode so we can select for the start object
+                        self.toggle_eraser_mode()
+                    def click_to_drag():
+                        start_objects = {'player': self.start.player,
+                                         'door': self.start.door,
+                                         'wall': self.start.wall,
+                                         'flyer': self.start.flyer,
+                                         'reverse_wall': self.start.reverse_wall,
+                                         'spring': self.start.spring,
+                                         'smily_robot': self.start.smily_robot,
+                                         'diamonds': self.start.diamonds,
+                                         'sticky_block': self.start.sticky_block,
+                                         'fall_spikes': self.start.fall_spikes,
+                                         'stand_spikes': self.start.stand_spikes}
+                        for start_object_key, start_object_value in start_objects.items():
+                            if start_object_value.rect.collidepoint(self.mouse_pos):
+                                self.dragging.dragging_all_false()
+                                self.start = restart_start_objects(self.start, self.START_POSITIONS)
+                                setattr(self.dragging, start_object_key, True)
+                                self.is_an_object_currently_being_dragged = True
+                                if start_object_key == 'player':
+                                    if self.placed_player is None:
                                         self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, start_object_value.rect.topleft, IMAGES)
-                                    return  # Exit after the first match
+                                        self.start.player.toggle_image_start_or_drag(self.dragging.player)
+                                    else:
+                                        print("Error: Too many players")
+                                elif start_object_key == 'door':
+                                    if self.placed_door is None:
+                                        self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, start_object_value.rect.topleft, IMAGES)
+                                        self.start.door.toggle_image_start_or_drag(self.dragging.door)
+                                    else:
+                                        print("Error: Only one exit allowed")
+                                elif start_object_key == 'stand_spikes':
+                                    self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, self.start.stand_spikes.rect.topleft, IMAGES, self.rotate_button.current_stand_spikes_rotate)
+                                else:
+                                    self.start.dynamic_object_placeholder.flip_start_sprite(self.dragging, start_object_value.rect.topleft, IMAGES)
+                                return  # Exit after the first match
                         
-                        click_to_drag()
+                    click_to_drag()
                         
             #################
             # LEFT CLICK (PRESSED DOWN)
@@ -915,13 +918,6 @@ class GameState:
     def toggle_eraser_mode(self):
         # Toggle the eraser mode state
         self.eraser_mode_active = not self.eraser_mode_active
-        if self.eraser_mode_active:
-            # Change cursor to eraser image
-            eraser_cursor_image = IMAGES["spr_eraser_cursor"]
-            pygame.mouse.set_visible(False)  # Hide the default cursor
-        else:
-            # Change cursor back to default
-            pygame.mouse.set_visible(True)
         # Update the eraser button visual state
         self.eraser_button.toggle_eraser_button_image(self.eraser_mode_active)
     def switch_to_edit_mode(self):
@@ -1353,11 +1349,6 @@ def main():
                 if Grid.ALL_GRIDS_ENABLED:
                     draw_grid(SCREEN, Grid.GRID_SPACING, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
                 game_state.start_sprites.draw(SCREEN)
-                if game_state.eraser_mode_active:
-                    # Draw eraser cursor image at the mouse position
-                    mouse_x, mouse_y = pygame.mouse.get_pos()
-                    eraser_cursor_image = IMAGES["spr_eraser_cursor"]
-                    game_state.screen.blit(eraser_cursor_image, (mouse_x-4, mouse_y-4))
                 # Draw yellow outline around start object being dragged
                 if GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS is not None:
                     sprite_name, pos = GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS
