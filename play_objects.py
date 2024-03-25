@@ -260,7 +260,6 @@ class PlaySpring(PlayObject):
     spring_list = []
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_spring"])
-        pygame.sprite.Sprite.__init__(self)
         self.pos = pos
     def restart(self):
         self.rect.topleft = self.pos
@@ -271,7 +270,7 @@ class PlaySpring(PlayObject):
 
 class PlayPlayer(PlayObject):
     # Constants for physics and gameplay adjustments
-    GRAVITY = 0.25
+    GRAVITY = 0.35
     PROP_GRAVITY = 0.01
     MAX_PROP_SPEED = -2
     PROP_ACCELERATION = 0.25
@@ -279,7 +278,6 @@ class PlayPlayer(PlayObject):
     DOUBLE_JUMP_SPEED = -2
     MOVE_SPEED = 4
     def __init__(self, pos, play_sprites, images, sounds):
-        pygame.sprite.Sprite.__init__(self)
         super().__init__(pos, play_sprites, images["spr_player"])
         self.images = images
         self.sounds = sounds
@@ -337,10 +335,10 @@ class PlayPlayer(PlayObject):
             self.speed_y = 0
             self.propeller = 0
         self.animate_images()
-    def go_left(self):
+    def move_left(self):
         self.speed_x = -self.MOVE_SPEED
         self.last_pressed_r = 0  # Indicates moving left
-    def go_right(self):
+    def move_right(self):
         self.speed_x = self.MOVE_SPEED
         self.last_pressed_r = 1  # Indicates moving right
     def stop(self):

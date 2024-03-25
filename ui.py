@@ -46,13 +46,6 @@ class GridButton(pygame.sprite.Sprite):
         self.rect.topleft = pos
         
         self.grid_on_var = 1
-
-class ColorButton(pygame.sprite.Sprite):
-    def __init__(self, pos, images):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = images["spr_color_button"]
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
         
 
 class SaveFileButton(pygame.sprite.Sprite):
