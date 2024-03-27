@@ -725,7 +725,6 @@ class GameState:
                                     # Start object already was selected, toggle it off
                                     self.selected_object_type = None
                                     self.start.dynamic_object_placeholder.reset()
-                                    print("Turning off the object")
                                     return
                                 else:
                                     # Start object was not selected yet
@@ -849,9 +848,13 @@ class GameState:
                         # REMOVE ALL SPRITES
                         remove_all_placed(self)
                 if self.rotate_button.rect.collidepoint(self.mouse_pos):
+                    # Click rotate button
                     if not self.dragging.stand_spikes:
                         self.rotate_button.current_stand_spikes_rotate = (self.rotate_button.current_stand_spikes_rotate + 90) % 360
                         self.start.stand_spikes.change_image_rotation(self.rotate_button.current_stand_spikes_rotate)
+                        if self.selected_object_type == "stand_spikes":
+                            # Update the yellow outline spikes
+                            self.start.dynamic_object_placeholder.start_sprite_with_yellow_outline(self.selected_object_type, self.start.stand_spikes.rect.topleft, IMAGES, self.rotate_button.current_stand_spikes_rotate)
 
     def handle_mouse_down_events(self, event):
         self.mouse_button_down = True
