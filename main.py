@@ -590,6 +590,50 @@ class GameState:
         self.moving_left = self.left_arrow_button.rect.collidepoint(pos)
         self.moving_right = self.right_arrow_button.rect.collidepoint(pos)
         # No jump updates here since jumping is a one-time action per click
+        
+    def interpolate_positions(self, start, end, grid_spacing):
+        """Generate positions between start and end points on the grid."""
+        interpolated_positions = []
+        # Calculate steps needed based on the maximum difference in grid coordinates
+        max_steps = max(abs(end[0] - start[0]), abs(end[1] - start[1])) // grid_spacing
+        dx = (end[0] - start[0]) / max(1, max_steps)
+        dy = (end[1] - start[1]) / max(1, max_steps)
+    
+        for step in range(max_steps + 1):
+            next_pos = (start[0] + step * dx, start[1] + step * dy)
+            # Snap each intermediate position to the grid
+            snapped_pos = snap_to_grid(next_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
+            if snapped_pos not in interpolated_positions:
+                interpolated_positions.append(snapped_pos)
+    
+        return interpolated_positions
+    
+    # Assume place_object_at_position is a method that places the selected object at the given grid position
+    def place_object_at_position(self, position, object_type):
+        """Place an object of the specified type at the given grid position."""
+        if object_type == "player" and not self.placed_player:
+            self.placed_player = PlacedPlayer(position, self.placed_sprites, IMAGES)
+        elif object_type == "door" and not self.placed_door:
+            self.placed_door = PlacedDoor(position, self.placed_sprites, IMAGES)
+        elif object_type == 'wall':
+            PlacedWall(position, self.placed_sprites, IMAGES)
+        elif object_type == 'flyer':
+            PlacedFlyer(position, self.placed_sprites, IMAGES)
+        elif object_type == 'reverse_wall':
+            PlacedReverseWall(position, self.placed_sprites, IMAGES)
+        elif object_type == 'spring':
+            PlacedSpring(position, self.placed_sprites, IMAGES)
+        elif object_type == 'smily_robot':
+            PlacedSmilyRobot(position, self.placed_sprites, IMAGES)
+        elif object_type == 'diamonds':
+            PlacedDiamonds(position, self.placed_sprites, IMAGES)
+        elif object_type == 'sticky_block':
+            PlacedStickyBlock(position, self.placed_sprites, IMAGES)
+        elif object_type == 'fall_spikes':
+            PlacedFallSpikes(position, self.placed_sprites, IMAGES)
+        elif object_type == 'stand_spikes':
+            PlacedStandSpikes(position, self.placed_sprites, IMAGES, self.rotate_button.current_stand_spikes_rotate)
+
             
     def handle_events(self):
         for event in pygame.event.get():
@@ -640,6 +684,7 @@ class GameState:
                     if self.eraser_button.rect.collidepoint(self.mouse_pos):
                         self.dragging.dragging_all_false()
                         self.is_an_object_currently_being_dragged = False
+                        self.selected_object_type = None
                         self.toggle_eraser_mode()
                         GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
                     if not MOBILE_ACCESSIBILITY_MODE:
@@ -760,62 +805,27 @@ class GameState:
                 self.update_mouse_pos()
                 if self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT:
                     remove_placed_object(self.placed_sprites, self.mouse_pos, self)
+                    
+
             
             # CLICK AND DRAG OBJECT TO GRID
             elif (event.type == pygame.MOUSEMOTION and not self.eraser_mode_active):
+
                 self.update_mouse_pos()
                 if(self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT \
                    and self.mouse_pos[0] >= GameState.HORIZONTAL_GRID_OFFSET and \
                    self.mouse_pos[0] <= SCREEN_WIDTH-(GameState.HORIZONTAL_GRID_OFFSET+(Grid.GRID_SPACING/2)) and \
                    self.mouse_pos[1] <= SCREEN_HEIGHT-GameState.BOTTOM_Y_GRID_OFFSET):
-                    grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
-                    if grid_pos != self.last_placed_pos and not self.is_object_at_position(grid_pos):
-                        self.last_placed_pos = grid_pos
+                    new_grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
+    
+                    if new_grid_pos != self.last_placed_pos:
+                        interpolated_positions = self.interpolate_positions(self.last_placed_pos or new_grid_pos, new_grid_pos, Grid.GRID_SPACING)
                         
-                        # Handle PlacedWall
-                        if self.dragging.wall:
-                            PlacedWall(grid_pos, self.placed_sprites, IMAGES)
+                        for position in interpolated_positions:
+                            # Use the selected object type stored in self.selected_object_type
+                            self.place_object_at_position(position, self.selected_object_type)
                         
-                        # Handle PlacedPlayer - Ensure only one instance is placed
-                        elif self.dragging.player:
-                            # If a player has already been placed, update its position
-                            if self.placed_player is not None:
-                                self.placed_player.rect.topleft = grid_pos
-                            # If no player has been placed, create a new one
-                            else:
-                                self.placed_player = PlacedPlayer(grid_pos, self.placed_sprites, IMAGES)
-                        # You can only have one door
-                        elif self.dragging.door:
-                            if self.placed_door is not None:
-                                self.placed_door.rect.topleft = grid_pos
-                            else:
-                                self.placed_door = PlacedDoor(grid_pos, self.placed_sprites, IMAGES)
-                        # Handle PlacedFlyer - Allow multiple instances without overlap
-                        elif self.dragging.flyer:
-                            PlacedFlyer(grid_pos, self.placed_sprites, IMAGES)
-                            
-                        elif self.dragging.reverse_wall:
-                            PlacedReverseWall(grid_pos, self.placed_sprites, IMAGES)
-                        
-                        elif self.dragging.smily_robot:
-                            PlacedSmilyRobot(grid_pos, self.placed_sprites, IMAGES)
-                        
-                        elif self.dragging.spring:
-                            PlacedSpring(grid_pos, self.placed_sprites, IMAGES)
-                            
-                        elif self.dragging.diamonds:
-                            PlacedDiamonds(grid_pos, self.placed_sprites, IMAGES)
-                            
-                        elif self.dragging.sticky_block:
-                            PlacedStickyBlock(grid_pos, self.placed_sprites, IMAGES)
-                        
-                        elif self.dragging.fall_spikes:
-                            PlacedFallSpikes(grid_pos, self.placed_sprites, IMAGES)
-                            
-                        elif self.dragging.stand_spikes:
-                            PlacedStandSpikes(grid_pos, self.placed_sprites, IMAGES, self.rotate_button.current_stand_spikes_rotate)
-                            
-            
+                        self.last_placed_pos = new_grid_pos
             if event.type == MOUSEBUTTONUP:            
                 #################
                 # PLAY BUTTON
@@ -925,6 +935,7 @@ class GameState:
         self.dragging.dragging_all_false()
         self.is_an_object_currently_being_dragged = False
         GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
+        self.selected_object_type = None
         # Makes sure there is at least one player to play game
         if self.placed_player:
             # Makes clicking play again unclickable
