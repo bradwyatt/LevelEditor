@@ -1,12 +1,22 @@
 # Propeller Level Editor Game
 
-Welcome to the Propeller Level Editor Game, served as a proof of concept for being able to create a level editor platform game with the bonus of having mobile accessibility.
+Welcome to the Propeller Level Editor Game, served as a proof of concept for being able to create a level editor platform game with the bonus of having mobile accessibility. This game offers a unique blend of creativity, strategy, and personal challenge, inviting players to design, play, and refine their own levels on a versatile and user-friendly platform.
 
 ## Game Description
-This is a platform level editor. In order to beat a level, collect all the jewels and then enter the door.
+In Propeller Level Editor Game, players are empowered to become architects of their own digital worlds. This game combines the thrill of platforming with the creativity of level design, all accessible from your mobile device. With a focus on user-generated content, the possibilities are endless. Whether you're designing intricate puzzles, dodging dangerous robots, or collecting jewels to unlock the door to victory, you're in control.
 
-## Prerequisites
-Made with Python 3.7.3 with pygame.
+### Key Features:
+
+- **Mobile-Friendly Level Editor**: Design levels on the go, with an intuitive drag-and-drop interface.
+- **Creative Freedom**: With no preset levels, every creation is a unique challenge.
+- **Dynamic Gameplay Mechanics**: Utilize a double jump, navigate through traps, and interact with various objects like sticky blocks and gravity-affected robots.
+- **Accessible Design Tools**: Built with both novice and experienced designers in mind, ensuring anyone can start creating and playing right away.
+
+### Gameplay Notes:
+
+- **Double Jump Dynamics**: Master the propeller-powered second jump to navigate through a level
+- **Obstacle Variety**: From indestructible flyers to falling spikes, each element is designed to challenge and surprise
+- **Strategic Level Design**: Encourages thinking like both a player and a creator, balancing challenge with fun
 
 ## Demo
 <p align="center">
