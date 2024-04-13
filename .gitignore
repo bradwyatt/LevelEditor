@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 
+# Photoshop files
+Sprites/Photoshop/
+
 # C extensions
 *.so
 
