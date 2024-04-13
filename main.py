@@ -125,6 +125,9 @@ def snap_to_grid(pos, screen_width, screen_height, grid_spacing, top_ui_boundary
 
     return adjusted_x, adjusted_y
 
+def InfoScreen(info_screen, screen):
+    screen.blit(info_screen, (0, 0))  # Display the Info Screen image
+
 def draw_yellow_outline(screen, sprite_or_image, position, thickness=2):
     # Determine if we have a sprite or a direct image
     if hasattr(sprite_or_image, 'rect'):
@@ -287,28 +290,6 @@ def draw_grid(screen, grid_spacing, screen_width, screen_height, top_ui_boundary
         pygame.draw.line(screen, grid_color, (horizontal_offset, y_position), (horizontal_offset + adjusted_width, y_position))
 
 
-class InfoScreen():
-    def __init__(self, INFO_SCREEN, screen):
-        self.screen = screen
-        self.title = INFO_SCREEN
-        self.clock = pygame.time.Clock()
-        self.menuon = 2
-        self.main_loop()
-
-    def main_loop(self):
-        while self.menuon == 2:
-            self.clock.tick(60)
-            self.screen.blit(self.title, (0, 0))
-            info_events = pygame.event.get()
-            pygame.display.flip()
-            for info_event in info_events:
-                if info_event.type == QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if info_event.type == KEYDOWN:
-                    if info_event.key == K_ESCAPE:
-                        self.menuon = 1
-                        break
 
 class ArrowButton(pygame.sprite.Sprite):
     def __init__(self, play_sprites, images, direction):
@@ -635,11 +616,19 @@ class GameState:
             PlacedStandSpikes(position, self.placed_sprites, IMAGES, self.rotate_button.current_stand_spikes_rotate)
 
             
-    def handle_events(self):
+    def handle_events(self, menu_on):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if self.info_button.rect.collidepoint(event.pos):
+                    # Toggle info screen on/off
+                    menu_on = 2 if menu_on == 1 else 1  # Toggle between game and info screen
+                else:
+                    # Make sure info menu is closed if clicked elsewhere
+                    if menu_on == 2:
+                        menu_on = 1
             elif event.type == pygame.KEYDOWN:
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -840,8 +829,6 @@ class GameState:
                 if self.restart_button.rect.collidepoint(self.mouse_pos):
                     if self.game_mode == self.PLAY_MODE:
                         restart_level(self)
-                if self.info_button.rect.collidepoint(self.mouse_pos):
-                    MENUON = 2
                 if self.clear_button.rect.collidepoint(self.mouse_pos):
                     if self.game_mode == self.EDIT_MODE: #Editing mode
                         self.start = restart_start_objects(self.start, self.START_POSITIONS)
@@ -855,6 +842,7 @@ class GameState:
                         if self.selected_object_type == "stand_spikes":
                             # Update the yellow outline spikes
                             self.start.dynamic_object_placeholder.start_sprite_with_yellow_outline(self.selected_object_type, self.start.stand_spikes.rect.topleft, IMAGES, self.rotate_button.current_stand_spikes_rotate)
+        return menu_on
 
     def handle_mouse_down_events(self, event):
         self.mouse_button_down = True
@@ -1294,8 +1282,9 @@ def main():
     if not MOBILE_ACCESSIBILITY_MODE:
         ROOT = tk.Tk()
         ROOT.withdraw()
+        
+    MENU_ON = 1
 
-    MENUON = 1
     load_all_assets()
     
     game_state = GameState()
@@ -1318,13 +1307,14 @@ def main():
         clock.tick(FPS)
         game_state.update_mouse_pos()
         
-        if MENUON == 1: # Initiate room
+        if MENU_ON == 1:  # Normal game state
+        
             game_state.initiate_room()
-            game_state.handle_events()
+            MENU_ON = game_state.handle_events(MENU_ON)
             
             if not game_state.is_paused:
                 # Only update game logic if the game is not paused
-                game_state.handle_events()
+                game_state.handle_events(MENU_ON)
                 if game_state.game_mode == GameState.EDIT_MODE:
                     game_state.edit_mode_function()
                     game_state.start_sprites.update()
@@ -1338,7 +1328,7 @@ def main():
             
             SCREEN.blit(METROPOLIS_BACKGROUND, (0, 0))
             
-
+    
             game_state.game_mode_sprites.draw(SCREEN)
             if game_state.game_mode == game_state.EDIT_MODE: #Only draw placed sprites in editing mode
                 if game_state.grid_button.grid_on_var:
@@ -1353,18 +1343,23 @@ def main():
                 if game_state.selected_object_type is not None:
                     sprite_name, pos = GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS
                     draw_yellow_outline(SCREEN, IMAGES[sprite_name], pos, thickness=1)
-
+    
             elif game_state.game_mode == game_state.PLAY_MODE: #Only draw play sprites in play mode
                 if game_state.eraser_mode_active:
                     game_state.toggle_eraser_mode()
                 game_state.play_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("Deaths: " + str(game_state.play_player.death_count), 1, (0, 0, 0))
             SCREEN.blit(DEATH_COUNT_TEXT, ((SCREEN_WIDTH/2-50), 5))
-
+    
             pygame.display.update()
-        elif MENUON == 2: # Info SCREEN in a WHILE loop
-            InfoScreen(INFO_SCREEN, SCREEN)
-            MENUON = 1
+        elif MENU_ON == 2:
+            InfoScreen(INFO_SCREEN, SCREEN)  # Display the Info Screen
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    # Click anywhere to return to the game
+                    MENU_ON = 1
+            
+            pygame.display.update()
         
 if __name__ == "__main__":
     main()
