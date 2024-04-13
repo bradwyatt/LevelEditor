@@ -2,6 +2,7 @@
 Propeller Platformer: Level Editor created by Brad Wyatt
 """
 import random
+import time
 import sys
 import os
 import copy
@@ -471,6 +472,27 @@ class Start():
         self.stand_spikes = StartStandSpikes(start_positions['stand_spikes'], IMAGES)
         start_sprites.add(self.stand_spikes)
         
+class NotificationManager:
+    def __init__(self):
+        self.messages = []
+
+    def add_message(self, text, duration, position, font, color=(255, 0, 0)):
+        """ Adds a message to the queue. Duration in seconds. """
+        message = {'text': text, 'duration': duration, 'position': position, 'font': font, 'color': color, 'start_time': pygame.time.get_ticks()}
+        self.messages.append(message)
+
+    def draw_messages(self, screen):
+        """ Draws all messages that are still active. """
+        current_time = pygame.time.get_ticks()
+        active_messages = []
+        for message in self.messages:
+            if current_time - message['start_time'] < message['duration'] * 1000:  # Convert seconds to milliseconds
+                text_surface = message['font'].render(message['text'], True, message['color'])
+                text_rect = text_surface.get_rect(center=message['position'])
+                screen.blit(text_surface, text_rect)
+                active_messages.append(message)  # Keep this message for the next frame
+        self.messages = active_messages  # Only keep active messages
+
 class GameState:
     EDIT_MODE, PLAY_MODE = 0, 1
     START_POSITIONS = {'player': (10, 4), 'wall': (270, 12), 'reverse_wall': (405, 12),
@@ -530,6 +552,9 @@ class GameState:
         self.jumping = False
         
         self.selected_object_type = None
+        
+        self.notification_manager = NotificationManager()
+
 
     def update_mouse_pos(self):
         self.mouse_pos = pygame.mouse.get_pos()
@@ -636,7 +661,10 @@ class GameState:
                 if event.key == pygame.K_SPACE:
                     # Toggle pause state
                     self.is_paused = not self.is_paused
-                    print("Pause Toggled:", self.is_paused)
+                    font = pygame.font.SysFont('Arial', 14)
+                    pause_message = "Pause Toggled: " + str(self.is_paused)
+                    self.notification_manager.add_message(pause_message, 1, (SCREEN_WIDTH-80, 100), font)
+                    print(pause_message)
             if self.game_mode == GameState.EDIT_MODE:
                 # Update dragging state with left click
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # Left click hold down
@@ -911,6 +939,8 @@ class GameState:
         self.eraser_button.toggle_eraser_button_image(self.eraser_mode_active)
     def switch_to_edit_mode(self):
         # Makes sure you are not in editing mode to enter editing mode
+        font = pygame.font.SysFont('Arial', 14)
+        self.notification_manager.add_message("Editing Mode Activated", 1, (SCREEN_WIDTH-80, 100), font)
         print("Editing Mode Activated")
         self.game_mode = self.EDIT_MODE
         self.play_player.death_count = 0
@@ -932,6 +962,8 @@ class GameState:
             # Makes clicking play again unclickable
             self.game_mode = self.PLAY_MODE
             self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
+            font = pygame.font.SysFont('Arial', 14)
+            self.notification_manager.add_message("Play Mode Activated", 1, (SCREEN_WIDTH-80, 100), font, (0, 255, 0))
             print("Play Mode Activated")
             
             #MUSIC_PLAYER = [MusicPlayer()]
@@ -961,6 +993,8 @@ class GameState:
             self.right_arrow_button = ArrowButton(self.play_sprites, IMAGES, "right")
             self.jump_button = JumpButton(self.play_sprites, IMAGES)
         else:
+            font = pygame.font.SysFont('Arial', 14)
+            self.notification_manager.add_message("You need a character!", 3, (SCREEN_WIDTH-80, 100), font, (255, 255, 0))
             print("You need a character!")
     def edit_mode_function(self):
         # DRAG- switch dynamic object placeholder with player sprite and vice versa
@@ -1084,7 +1118,12 @@ class GameState:
             self.play_door.image = self.play_door.open_or_close(self.play_player.score, PlayDiamonds.diamonds_list)
             if pygame.sprite.collide_mask(self.play_player, self.play_door):
                 if self.play_player.score == len(PlayDiamonds.diamonds_list):
+                    font = pygame.font.SysFont('Arial', 96)
+                    self.notification_manager.add_message("You Win!", 3, (SCREEN_WIDTH//2, SCREEN_HEIGHT//2), font)
                     print("You Win!")
+                    self.notification_manager.draw_messages(self.screen)
+                    pygame.display.update()
+                    time.sleep(3)
                     self.switch_to_edit_mode()
                     #music_player = [MusicPlayer()]
                     
@@ -1287,6 +1326,8 @@ def main():
 
     load_all_assets()
     
+
+    
     game_state = GameState()
     
     #Fonts
@@ -1296,7 +1337,7 @@ def main():
     #Backgrounds
     START_MENU = pygame.image.load("sprites/start_menu.png").convert()
     START_MENU = pygame.transform.scale(START_MENU, (SCREEN_WIDTH, SCREEN_HEIGHT))
-    INFO_SCREEN = pygame.image.load("sprites/info_screen.bmp").convert()
+    INFO_SCREEN = pygame.image.load("sprites/info_screen.png").convert()
     INFO_SCREEN = pygame.transform.scale(INFO_SCREEN, (SCREEN_WIDTH, SCREEN_HEIGHT))
     
     METROPOLIS_BACKGROUND = pygame.image.load("sprites/metropolis_background.png").convert()
@@ -1343,12 +1384,14 @@ def main():
                 if game_state.selected_object_type is not None:
                     sprite_name, pos = GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS
                     draw_yellow_outline(SCREEN, IMAGES[sprite_name], pos, thickness=1)
+
     
             elif game_state.game_mode == game_state.PLAY_MODE: #Only draw play sprites in play mode
                 if game_state.eraser_mode_active:
                     game_state.toggle_eraser_mode()
                 game_state.play_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("Deaths: " + str(game_state.play_player.death_count), 1, (0, 0, 0))
+            game_state.notification_manager.draw_messages(game_state.screen)
             SCREEN.blit(DEATH_COUNT_TEXT, ((SCREEN_WIDTH/2-50), 5))
     
             pygame.display.update()
