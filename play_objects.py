@@ -45,17 +45,17 @@ class PlayFlyer(PlayObject):
         self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
         for wall in PlayWall.wall_list:
             if self.rect.colliderect(wall.rect):
-                if (self.rect.bottom > wall.rect.top+PlayFlyer.WALL_BOUNDARY_THRESHOLD and self.rect.top < wall.rect.bottom):
+                if (self.rect.bottom > wall.rect.top+PlayFlyer.WALL_BOUNDARY_THRESHOLD and self.rect.top < wall.rect.bottom-PlayFlyer.WALL_BOUNDARY_THRESHOLD):
                     self.right_or_left = self.right_or_left*-1
                     self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
         for reverse_wall in PlayReverseWall.reverse_wall_list:
             if self.rect.colliderect(reverse_wall.rect):
-                if (self.rect.bottom > reverse_wall.rect.top+PlayFlyer.WALL_BOUNDARY_THRESHOLD and self.rect.top < reverse_wall.rect.bottom):
+                if (self.rect.bottom > reverse_wall.rect.top+PlayFlyer.WALL_BOUNDARY_THRESHOLD and self.rect.top < reverse_wall.rect.bottom-PlayFlyer.WALL_BOUNDARY_THRESHOLD):
                     self.right_or_left = self.right_or_left*-1
                     self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
         for sticky_block in PlayStickyBlock.sticky_block_list:
             if self.rect.colliderect(sticky_block.rect):
-                if (self.rect.bottom > sticky_block.rect.top+PlayFlyer.WALL_BOUNDARY_THRESHOLD and self.rect.top < sticky_block.rect.bottom):
+                if (self.rect.bottom > sticky_block.rect.top+PlayFlyer.WALL_BOUNDARY_THRESHOLD and self.rect.top < sticky_block.rect.bottom-PlayFlyer.WALL_BOUNDARY_THRESHOLD):
                     self.right_or_left = self.right_or_left*-1
                     self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
         if self.rect.right > SCREEN_WIDTH or self.rect.left < 0:
