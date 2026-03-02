@@ -33,6 +33,7 @@ class PlayReverseWall(PlayObject):
 class PlayFlyer(PlayObject):
     flyer_list = []
     SPEED = 1
+    WALL_BOUNDARY_THRESHOLD = 5 # Pixel overlap with wall
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_flyer"])
         self.images = images
@@ -44,12 +45,19 @@ class PlayFlyer(PlayObject):
         self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
         for wall in PlayWall.wall_list:
             if self.rect.colliderect(wall.rect):
-                self.right_or_left = self.right_or_left*-1
-                self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
+                if (self.rect.bottom > wall.rect.top+PlayFlyer.WALL_BOUNDARY_THRESHOLD and self.rect.top < wall.rect.bottom-PlayFlyer.WALL_BOUNDARY_THRESHOLD):
+                    self.right_or_left = self.right_or_left*-1
+                    self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
         for reverse_wall in PlayReverseWall.reverse_wall_list:
             if self.rect.colliderect(reverse_wall.rect):
-                self.right_or_left = self.right_or_left*-1
-                self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
+                if (self.rect.bottom > reverse_wall.rect.top+PlayFlyer.WALL_BOUNDARY_THRESHOLD and self.rect.top < reverse_wall.rect.bottom-PlayFlyer.WALL_BOUNDARY_THRESHOLD):
+                    self.right_or_left = self.right_or_left*-1
+                    self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
+        for sticky_block in PlayStickyBlock.sticky_block_list:
+            if self.rect.colliderect(sticky_block.rect):
+                if (self.rect.bottom > sticky_block.rect.top+PlayFlyer.WALL_BOUNDARY_THRESHOLD and self.rect.top < sticky_block.rect.bottom-PlayFlyer.WALL_BOUNDARY_THRESHOLD):
+                    self.right_or_left = self.right_or_left*-1
+                    self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
         if self.rect.right > SCREEN_WIDTH or self.rect.left < 0:
             self.right_or_left = self.right_or_left*-1
             self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
@@ -260,7 +268,6 @@ class PlaySpring(PlayObject):
     spring_list = []
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_spring"])
-        pygame.sprite.Sprite.__init__(self)
         self.pos = pos
     def restart(self):
         self.rect.topleft = self.pos
@@ -271,7 +278,7 @@ class PlaySpring(PlayObject):
 
 class PlayPlayer(PlayObject):
     # Constants for physics and gameplay adjustments
-    GRAVITY = 0.25
+    GRAVITY = 0.35
     PROP_GRAVITY = 0.01
     MAX_PROP_SPEED = -2
     PROP_ACCELERATION = 0.25
@@ -279,7 +286,6 @@ class PlayPlayer(PlayObject):
     DOUBLE_JUMP_SPEED = -2
     MOVE_SPEED = 4
     def __init__(self, pos, play_sprites, images, sounds):
-        pygame.sprite.Sprite.__init__(self)
         super().__init__(pos, play_sprites, images["spr_player"])
         self.images = images
         self.sounds = sounds
@@ -337,10 +343,10 @@ class PlayPlayer(PlayObject):
             self.speed_y = 0
             self.propeller = 0
         self.animate_images()
-    def go_left(self):
+    def move_left(self):
         self.speed_x = -self.MOVE_SPEED
         self.last_pressed_r = 0  # Indicates moving left
-    def go_right(self):
+    def move_right(self):
         self.speed_x = self.MOVE_SPEED
         self.last_pressed_r = 1  # Indicates moving right
     def stop(self):
