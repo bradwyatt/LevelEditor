@@ -100,3 +100,9 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Local agent instructions
+AGENTS.md
+
+# Private local notes
+README.local.md

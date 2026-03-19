@@ -1,8 +1,12 @@
 import pygame
 import os
+import sys
 
-# Constants
 SCREEN_WIDTH, SCREEN_HEIGHT = 1024, 600
+GRID_SPACING = 23
+HORIZONTAL_GRID_OFFSET = 250
+TOP_UI_BOUNDARY_Y_HEIGHT = 90
+
 FPS = 60
 MOBILE_ACCESSIBILITY_MODE = True
 
@@ -16,9 +20,9 @@ def load_image(file, name, alpha=False, global_alpha=None, colorkey=None):
     :param file: Path to the image file.
     :param name: Name/key to store the image in the IMAGES dictionary.
     :param alpha: Boolean to indicate if alpha transparency should be used.
-    :param global_alpha: Global alpha value to set for the image. 
+    :param global_alpha: Global alpha value to set for the image.
                          Should be a number between 0 (transparent) and 255 (opaque).
-    :param colorkey: Color key for transparency. If None, no colorkey is applied. 
+    :param colorkey: Color key for transparency. If None, no colorkey is applied.
                      If -1, the color of the top-left pixel is used.
     """
     try:
@@ -58,7 +62,7 @@ def load_sound(file, name):
     except pygame.error as message:
         print('Cannot load sound:', file)
         raise SystemExit(message)
-        
+
 def load_font(name, size, is_system_font=False):
     """
     Loads a font and stores it in the FONTS dictionary.
@@ -71,7 +75,7 @@ def load_font(name, size, is_system_font=False):
             font = pygame.font.SysFont(name, size)
         else:
             font = pygame.font.Font(name, size)
-        
+
         if not is_system_font:
             # Use only the base name of the file (without path and extension) for the key
             base_name = os.path.splitext(os.path.basename(name))[0]
@@ -79,7 +83,7 @@ def load_font(name, size, is_system_font=False):
         else:
             # For system fonts, use the name directly
             font_key = f"{name.replace(' ', '_').lower()}_{size}"
-    
+
         FONTS[font_key] = font
     except IOError as e:
         print(f"Cannot load font: {name}, {e}")

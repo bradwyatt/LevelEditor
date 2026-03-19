@@ -135,6 +135,8 @@ source .venv/bin/activate
 python main.py
 ```
 
+Desktop mode enables the in-editor save and load buttons and uses native `tkinter` file dialogs to choose `.lvl` filenames.
+
 ## Bundled Levels
 
 The repo includes several example level files:
@@ -148,13 +150,12 @@ These files store object positions in a Python-literal dictionary format, with k
 
 ## Current Save / Load Status
 
-The project includes the beginnings of save and load support, and the level format is already present in the `Levels` directory. However, the in-app `save_file()` and `load_file()` functions in [`main.py`](./main.py) are currently stubbed out and commented.
+The editor includes working save and load support for desktop runs of the app.
 
-That means:
+Current behavior:
 
-- The editor/play workflow works
-- Bundled `.lvl` files exist as project assets
-- Fully wired in-editor save/load is not currently active
+- Desktop `python main.py`: save/load buttons are enabled and use native file dialogs
+- Bundled `.lvl` files still exist as project assets and examples
 
 ## Architecture
 

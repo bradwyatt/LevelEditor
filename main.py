@@ -7,26 +7,268 @@ import time
 import sys
 import os
 import copy
-# import tkinter as tk
-# from tkinter.filedialog import asksaveasfilename, askopenfilename
+import subprocess
 from ast import literal_eval
 import pygame
 from pygame.constants import RLEACCEL
 from pygame.locals import (KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP, K_LEFT,
                            K_RIGHT, QUIT, K_ESCAPE)
-from utils import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, IMAGES, SOUNDS, MOBILE_ACCESSIBILITY_MODE, load_image, load_sound
-from ui import ClearButton, InfoButton, EraserButton, RestartButton, GridButton, SaveFileButton, LoadFileButton
+from utils import SCREEN_WIDTH, SCREEN_HEIGHT, GRID_SPACING, HORIZONTAL_GRID_OFFSET, TOP_UI_BOUNDARY_Y_HEIGHT, FPS, IMAGES, SOUNDS, MOBILE_ACCESSIBILITY_MODE, load_image, load_sound
+from ui import ClearButton, InfoButton, EraserButton, RestartButton, GridButton, SaveFileButton, LoadFileButton, MainMenuButton
 from start_objects import StartWall, StartReverseWall, StartDiamonds, StartDoor, StartFlyer, StartSmilyRobot, StartSpring, StartPlayer, StartStickyBlock, StartFallSpikes, StartStandSpikes, RotateButton
 from placed_objects import PlacedWall, PlacedReverseWall, PlacedDiamonds, PlacedDoor, PlacedFlyer, PlacedSmilyRobot, PlacedSpring, PlacedStickyBlock, PlacedFallSpikes, PlacedStandSpikes, PlacedPlayer
 from play_objects import PlayWall, PlayReverseWall, PlayFlyer, PlayDiamonds, PlayDoor, PlaySmilyRobot, PlayStickyBlock, PlayStandSpikes, PlayFallSpikes, PlaySpring, PlayPlayer
 
+try:
+    import tkinter as tk
+    from tkinter.filedialog import askopenfilename, asksaveasfilename
+except ImportError:
+    tk = None
+    askopenfilename = None
+    asksaveasfilename = None
+
 # Initialize pygame
 pygame.init()
-SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # pygame.FULLSCREEN for fullSCREEN
+SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 GAME_ICON = pygame.image.load("sprites/player_ico.png")
 pygame.display.set_icon(GAME_ICON)
 pygame.display.set_caption('Level Editor')
 clock = pygame.time.Clock()
+LEVELS_DIR = os.path.join(os.path.dirname(__file__), "levels")
+DEFAULT_LEVEL_FILENAME = "editor_quicksave.lvl"
+DEFAULT_LEVEL_PATH = os.path.join(LEVELS_DIR, DEFAULT_LEVEL_FILENAME)
+ITCH_MODE_ARGS = {"itch", "--itch"}
+IS_WEB_RUNTIME = sys.platform == "emscripten"
+ITCH_MODE = IS_WEB_RUNTIME or any(arg.lower() in ITCH_MODE_ARGS for arg in sys.argv[1:])
+APP_SCREEN_MAIN_MENU = 0
+APP_SCREEN_GAME = 1
+APP_SCREEN_INFO = 2
+APP_SCREEN_LEVEL_SELECT = 3
+BUILTIN_LEVELS = [
+    ("Tutorial", "tutorial.lvl"),
+    ("Skyline Sprint", "skyline_sprint.lvl"),
+    ("Sticky Floor", "sticky_floor.lvl"),
+    ("Gauntlet", "gauntlet.lvl"),
+]
+
+
+class MenuButton:
+    def __init__(self, rect, label, *, bg_color, border_color, text_color=(20, 18, 18)):
+        self.rect = pygame.Rect(rect)
+        self.label = label
+        self.bg_color = bg_color
+        self.border_color = border_color
+        self.text_color = text_color
+
+    def draw(self, screen, font, mouse_pos):
+        hovered = self.rect.collidepoint(mouse_pos)
+        fill_color = tuple(min(255, c + 18) for c in self.bg_color) if hovered else self.bg_color
+        pygame.draw.rect(screen, self.border_color, self.rect, border_radius=18)
+        pygame.draw.rect(screen, fill_color, self.rect.inflate(-6, -6), border_radius=14)
+        text_surface = font.render(self.label, True, self.text_color)
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        screen.blit(text_surface, text_rect)
+
+
+def draw_text_centered(screen, text, font, color, center):
+    text_surface = font.render(text, True, color)
+    text_rect = text_surface.get_rect(center=center)
+    screen.blit(text_surface, text_rect)
+
+
+def draw_wrapped_text(screen, text, font, color, topleft, max_width, line_gap=4):
+    words = text.split()
+    lines = []
+    current_line = ""
+    for word in words:
+        candidate = word if not current_line else f"{current_line} {word}"
+        if font.size(candidate)[0] <= max_width:
+            current_line = candidate
+        else:
+            if current_line:
+                lines.append(current_line)
+            current_line = word
+    if current_line:
+        lines.append(current_line)
+
+    x, y = topleft
+    for line in lines:
+        text_surface = font.render(line, True, color)
+        screen.blit(text_surface, (x, y))
+        y += text_surface.get_height() + line_gap
+    return y
+
+
+def draw_main_menu(screen, background, fonts, buttons, mouse_pos):
+    screen.blit(background, (0, 0))
+    panel_rect = pygame.Rect((SCREEN_WIDTH - 430) // 2, 150, 430, 390)
+    overlay = pygame.Surface(panel_rect.size, pygame.SRCALPHA)
+    overlay.fill((12, 28, 52, 196))
+    screen.blit(overlay, panel_rect.topleft)
+    pygame.draw.rect(screen, (245, 201, 82), panel_rect, width=4, border_radius=24)
+    draw_wrapped_text(
+        screen,
+        "Play the built-in levels or jump into the editor.",
+        fonts["subtitle"],
+        (221, 235, 247),
+        (panel_rect.x + 58, panel_rect.y + 24),
+        348,
+        line_gap=2,
+    )
+    centered_buttons = [
+        (buttons[0], (panel_rect.x + 55, panel_rect.y + 100)),
+        (buttons[1], (panel_rect.x + 55, panel_rect.y + 196)),
+        (buttons[2], (panel_rect.x + 55, panel_rect.y + 292)),
+    ]
+    for button, pos in centered_buttons:
+        button.rect.topleft = pos
+        button.draw(screen, fonts["button"], mouse_pos)
+
+    mobile_note = pygame.font.SysFont("Arial", 22).render("* Landscape mode recommended on mobile", True, (255, 240, 186))
+    note_padding_x = 14
+    note_padding_y = 8
+    note_rect = pygame.Rect(0, 0, mobile_note.get_width() + note_padding_x * 2, mobile_note.get_height() + note_padding_y * 2)
+    note_rect.bottomright = (SCREEN_WIDTH - 8, SCREEN_HEIGHT - 6)
+
+    note_overlay = pygame.Surface(note_rect.size, pygame.SRCALPHA)
+    note_overlay.fill((18, 24, 36, 212))
+    screen.blit(note_overlay, note_rect.topleft)
+    pygame.draw.rect(screen, (245, 201, 82), note_rect, width=2, border_radius=16)
+    screen.blit(mobile_note, (note_rect.x + note_padding_x, note_rect.y + note_padding_y))
+
+
+def draw_level_select(screen, background, fonts, buttons, mouse_pos):
+    screen.blit(background, (0, 0))
+    panel_rect = pygame.Rect(72, 54, 880, 492)
+    overlay = pygame.Surface(panel_rect.size, pygame.SRCALPHA)
+    overlay.fill((16, 24, 42, 204))
+    screen.blit(overlay, panel_rect.topleft)
+    pygame.draw.rect(screen, (104, 182, 255), panel_rect, width=4, border_radius=26)
+    draw_text_centered(screen, "Choose A Level", fonts["title"], (244, 248, 255), (512, 118))
+    draw_text_centered(screen, "These are the four bundled levels shipped with the game.", fonts["subtitle"], (208, 226, 244), (512, 164))
+    for button in buttons:
+        button.draw(screen, fonts["button"], mouse_pos)
+
+
+def draw_info_card(screen, rect, title, body_lines, icon=None, icon_size=(64, 64), *, bg_color=(245, 248, 252), border_color=(73, 116, 158), title_color=(19, 42, 69), body_color=(52, 67, 82)):
+    pygame.draw.rect(screen, border_color, rect, border_radius=22)
+    inner_rect = rect.inflate(-6, -6)
+    pygame.draw.rect(screen, bg_color, inner_rect, border_radius=18)
+
+    content_x = inner_rect.x + 18
+    text_left = content_x
+    if icon is not None:
+        scaled_icon = pygame.transform.smoothscale(icon, icon_size)
+        icon_y = inner_rect.y + 16
+        screen.blit(scaled_icon, (content_x, icon_y))
+        text_left += icon_size[0] + 16
+
+    title_font = pygame.font.SysFont("Arial", 18, bold=True)
+    body_font = pygame.font.SysFont("Arial", 13)
+    screen.blit(title_font.render(title, True, title_color), (text_left, inner_rect.y + 12))
+    y = inner_rect.y + 46
+    max_width = inner_rect.right - text_left - 18
+    for body_line in body_lines:
+        y = draw_wrapped_text(screen, body_line, body_font, body_color, (text_left, y), max_width) + 6
+
+
+def draw_instructions_screen(screen, background):
+    screen.fill((27, 34, 46))
+
+    overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+    overlay.fill((9, 16, 28, 120))
+    screen.blit(overlay, (0, 0))
+
+    panel_rect = pygame.Rect(30, 24, SCREEN_WIDTH - 60, SCREEN_HEIGHT - 48)
+    pygame.draw.rect(screen, (237, 196, 92), panel_rect, border_radius=28)
+    inner_rect = panel_rect.inflate(-6, -6)
+    pygame.draw.rect(screen, (243, 247, 252), inner_rect, border_radius=24)
+
+    title_font = pygame.font.SysFont("Arial", 34, bold=True)
+    subtitle_font = pygame.font.SysFont("Arial", 18)
+    small_font = pygame.font.SysFont("Arial", 16, bold=True)
+    section_font = pygame.font.SysFont("Arial", 22, bold=True)
+    body_color = (55, 68, 84)
+
+    draw_text_centered(screen, "Instructions", title_font, (17, 39, 68), (SCREEN_WIDTH // 2, 62))
+    draw_text_centered(screen, "Build, test, and beat every level.", subtitle_font, (72, 102, 134), (SCREEN_WIDTH // 2, 96))
+    screen.blit(small_font.render("Click anywhere to go back", True, (115, 126, 141)), (56, 48))
+
+    controls_rect = pygame.Rect(56, 128, 430, 190)
+    editor_rect = pygame.Rect(512, 128, 456, 190)
+    glossary_rect = pygame.Rect(56, 330, 912, 220)
+    draw_info_card(
+        screen,
+        controls_rect,
+        "How To Play",
+        [
+            "Move with Left and Right or the on-screen arrows.",
+            "Jump with Up or the jump button. You can jump again in mid-air.",
+            "Collect every diamond, then touch the door to win.",
+        ],
+        icon=IMAGES["spr_player"],
+        icon_size=(50, 90),
+    )
+    draw_info_card(
+        screen,
+        editor_rect,
+        "How To Build",
+        [
+            "Click an object in the top bar, then place it on the grid.",
+            "Use Play to test instantly, Clear to wipe the layout, and Rotate for stand spikes.",
+            "You need one Player and one Door before the level can be played.",
+        ],
+        icon=IMAGES["spr_play_button"],
+        icon_size=(64, 64),
+        bg_color=(240, 249, 255),
+        border_color=(67, 141, 198),
+    )
+
+    pygame.draw.rect(screen, (73, 116, 158), glossary_rect, border_radius=22)
+    glossary_inner = glossary_rect.inflate(-6, -6)
+    pygame.draw.rect(screen, (236, 243, 250), glossary_inner, border_radius=18)
+    screen.blit(section_font.render("Object Guide", True, (19, 42, 69)), (glossary_inner.x + 18, glossary_inner.y + 12))
+
+    object_cards = [
+        ("Player", "Your spawn point.", IMAGES["spr_player_start"], (58, 100)),
+        ("Door", "Exit after all diamonds.", IMAGES["spr_door_closed_start"], (54, 90)),
+        ("Wall", "Solid terrain tile.", IMAGES["spr_wall_start"], (60, 60)),
+        ("Diamond", "Collect them all.", IMAGES["spr_diamonds_start"], (60, 60)),
+        ("Spring", "Launches you upward.", IMAGES["spr_spring_start"], (60, 60)),
+        ("Robot", "Ground enemy. Jump on top.", IMAGES["spr_smily_robot_start"], (60, 60)),
+        ("Flyer", "Air enemy. Avoid it.", IMAGES["spr_flyer_start"], (60, 60)),
+        ("Reverse Wall", "Turns enemies around.", IMAGES["spr_reverse_wall_start"], (60, 60)),
+        ("Fall Spikes", "Drop when you move under them.", IMAGES["spr_fall_spikes_start"], (60, 60)),
+        ("Stand Spikes", "Static hazard. Rotates.", IMAGES["spr_stand_spikes_0_degrees_start"], (60, 60)),
+        ("Sticky Block", "Changes jump behavior.", IMAGES["spr_sticky_block_start"], (60, 60)),
+    ]
+
+    card_w = 208
+    card_h = 44
+    start_x = glossary_inner.x + 18
+    start_y = glossary_inner.y + 52
+    gap_x = 14
+    gap_y = 8
+    title_font_small = pygame.font.SysFont("Arial", 11, bold=True)
+    desc_font = pygame.font.SysFont("Arial", 10)
+
+    for index, (title, desc, icon, icon_size) in enumerate(object_cards):
+        col = index % 4
+        row = index // 4
+        card_rect = pygame.Rect(start_x + col * (card_w + gap_x), start_y + row * (card_h + gap_y), card_w, card_h)
+        pygame.draw.rect(screen, (199, 218, 235), card_rect, border_radius=16)
+        pygame.draw.rect(screen, (250, 252, 255), card_rect.inflate(-4, -4), border_radius=14)
+        max_icon_h = card_h - 16
+        scale_ratio = min((max_icon_h / icon_size[1]) if icon_size[1] else 1, 1.0)
+        scaled_size = (max(18, int(icon_size[0] * scale_ratio)), max(18, int(icon_size[1] * scale_ratio)))
+        scaled_icon = pygame.transform.smoothscale(icon, scaled_size)
+        icon_rect = scaled_icon.get_rect()
+        icon_rect.midleft = (card_rect.x + 14 + icon_rect.width // 2, card_rect.centery)
+        screen.blit(scaled_icon, icon_rect)
+        text_x = card_rect.x + 64
+        screen.blit(title_font_small.render(title, True, (24, 42, 63)), (text_x, card_rect.y + 6))
+        draw_wrapped_text(screen, desc, desc_font, body_color, (text_x, card_rect.y + 21), card_rect.width - 74, line_gap=0)
+
 
 def create_transparent_surface(width, height):
     """
@@ -118,7 +360,7 @@ def snap_to_grid(pos, screen_width, screen_height, grid_spacing, top_ui_boundary
     :return: A tuple (adjusted_x, adjusted_y) representing the adjusted position.
     """
     # Calculate column and row in the grid based on the position, including left offset
-    col = max(0, (pos[0] - left_ui_boundary_x_width) // grid_spacing)
+    col = (pos[0] - left_ui_boundary_x_width) // grid_spacing
     row = max(0, (pos[1] - top_ui_boundary_y_height) // grid_spacing)
 
     # Calculate the adjusted position
@@ -128,7 +370,7 @@ def snap_to_grid(pos, screen_width, screen_height, grid_spacing, top_ui_boundary
     return adjusted_x, adjusted_y
 
 def InfoScreen(info_screen, screen):
-    screen.blit(info_screen, (0, 0))  # Display the Info Screen image
+    draw_instructions_screen(screen, info_screen)
 
 def draw_yellow_outline(screen, sprite_or_image, position, thickness=2):
     # Determine if we have a sprite or a direct image
@@ -139,8 +381,30 @@ def draw_yellow_outline(screen, sprite_or_image, position, thickness=2):
         # It's a direct image; use position and image dimensions to create a rect
         rect = pygame.Rect(position[0], position[1], sprite_or_image.get_width(), sprite_or_image.get_height())
     
-    # Draw the rectangle outline
-    pygame.draw.rect(screen, pygame.Color('yellow'), rect, thickness)
+    # Draw the outline slightly outside the sprite bounds so solid tiles still show it.
+    outline_rect = rect.inflate(thickness * 2, thickness * 2)
+    pygame.draw.rect(screen, pygame.Color('yellow'), outline_rect, thickness)
+
+
+def draw_building_facades(screen, building_surfaces):
+    """Redraw non-playable building facades on top of the grid in edit mode."""
+    # Wyatt Labs Fitness: redraw the building body below the rooftop deck.
+    wl_surf, wl_pos = building_surfaces[0]
+    wl_facade_top = int(wl_surf.get_height() * 0.31) + Grid.GRID_SPACING
+    wl_facade = wl_surf.subsurface((0, wl_facade_top, wl_surf.get_width(), wl_surf.get_height() - wl_facade_top))
+    screen.blit(wl_facade, (wl_pos[0], wl_pos[1] + wl_facade_top))
+
+    # Salesfarce Park: redraw the tower body below the rooftop park.
+    sf_surf, sf_pos = building_surfaces[1]
+    sf_facade_top = int(sf_surf.get_height() * 0.50) + Grid.GRID_SPACING
+    sf_facade = sf_surf.subsurface((0, sf_facade_top, sf_surf.get_width(), sf_surf.get_height() - sf_facade_top))
+    screen.blit(sf_facade, (sf_pos[0], sf_pos[1] + sf_facade_top))
+
+    # Redraw the tiny non-playable strip at the left side of the Salesfarce facade.
+    sf_left_strip_width = Grid.GRID_SPACING
+    sf_left_strip = sf_surf.subsurface((0, sf_facade_top, sf_left_strip_width, sf_surf.get_height() - sf_facade_top))
+    screen.blit(sf_left_strip, (sf_pos[0], sf_pos[1] + sf_facade_top))
+
 
 def remove_placed_object(placed_sprites, mouse_pos, game_state):
     # Iterate over all lists except the player list, which is handled separately now.
@@ -178,121 +442,265 @@ def restart_start_objects(start, start_positions):
     start.stand_spikes.rect.topleft = start_positions['stand_spikes']
     return start
 
-def load_file(PLACED_SPRITES, game_state):
-    pass
-    # request_file_name = askopenfilename(defaultextension=".lvl")
-    # open_file = open(request_file_name, "r")
-    # loaded_file = open_file.read()
-    # loaded_dict = literal_eval(loaded_file)
+def get_notification_font():
+    return pygame.font.SysFont('Arial', 14)
+
+def save_load_enabled():
+    return not ITCH_MODE
+
+def desktop_file_dialog_enabled():
+    return save_load_enabled() and tk is not None and asksaveasfilename is not None and askopenfilename is not None
+
+def get_tk_root():
+    if not desktop_file_dialog_enabled():
+        return None
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    return root
+
+def _macos_choose_open_file(title, initial_dir):
+    """Use osascript for open-file dialog on macOS to avoid tkinter+SDL crash."""
+    script = (
+        f'tell application "Finder" to activate\n'
+        f'set f to choose file with prompt "{title}" '
+        f'default location POSIX file "{initial_dir}"\n'
+        f'return POSIX path of f'
+    )
+    try:
+        r = subprocess.run(['osascript', '-e', script], capture_output=True, text=True, timeout=120)
+        return r.stdout.strip() if r.returncode == 0 else None
+    except Exception:
+        return None
+
+def _macos_choose_save_file(title, initial_dir, default_name):
+    """Use osascript for save-file dialog on macOS to avoid tkinter+SDL crash."""
+    script = (
+        f'tell application "Finder" to activate\n'
+        f'set f to choose file name with prompt "{title}" '
+        f'default location POSIX file "{initial_dir}" '
+        f'default name "{default_name}"\n'
+        f'return POSIX path of f'
+    )
+    try:
+        r = subprocess.run(['osascript', '-e', script], capture_output=True, text=True, timeout=120)
+        return r.stdout.strip() if r.returncode == 0 else None
+    except Exception:
+        return None
+
+def choose_save_file_path():
+    if not save_load_enabled():
+        return get_default_level_path()
+    if sys.platform == 'darwin':
+        return _macos_choose_save_file("Save Level", LEVELS_DIR, DEFAULT_LEVEL_FILENAME)
+    if not desktop_file_dialog_enabled():
+        return get_default_level_path()
+    root = get_tk_root()
+    try:
+        return asksaveasfilename(
+            parent=root,
+            title="Save Level",
+            initialdir=LEVELS_DIR,
+            initialfile=DEFAULT_LEVEL_FILENAME,
+            defaultextension=".lvl",
+            filetypes=[("Level files", "*.lvl"), ("All files", "*.*")],
+        )
+    finally:
+        if root:
+            root.destroy()
+
+def choose_load_file_path():
+    if not save_load_enabled():
+        return get_default_level_path()
+    if sys.platform == 'darwin':
+        return _macos_choose_open_file("Load Level", LEVELS_DIR)
+    if not desktop_file_dialog_enabled():
+        return get_default_level_path()
+    root = get_tk_root()
+    try:
+        return askopenfilename(
+            parent=root,
+            title="Load Level",
+            initialdir=LEVELS_DIR,
+            defaultextension=".lvl",
+            filetypes=[("Level files", "*.lvl"), ("All files", "*.*")],
+        )
+    finally:
+        if root:
+            root.destroy()
+
+def notify(game_state, text, duration=2, color=(0, 255, 0)):
+    if not game_state:
+        return
+    game_state.notification_manager.add_message(
+        text,
+        duration,
+        (SCREEN_WIDTH - 190, 100),
+        get_notification_font(),
+        color,
+    )
+
+def normalize_loaded_entries(entries, include_rotation=False):
+    normalized_entries = []
+    for entry in entries or []:
+        if isinstance(entry, dict):
+            pos = tuple(entry.get('pos', ()))
+            if len(pos) != 2:
+                continue
+            if include_rotation:
+                normalized_entries.append((pos, int(entry.get('rotate', 0)) % 360))
+            else:
+                normalized_entries.append(pos)
+        elif isinstance(entry, (list, tuple)) and len(entry) == 2:
+            pos = tuple(entry)
+            if include_rotation:
+                normalized_entries.append((pos, 0))
+            else:
+                normalized_entries.append(pos)
+    return normalized_entries
+
+def get_default_level_path():
+    os.makedirs(LEVELS_DIR, exist_ok=True)
+    return DEFAULT_LEVEL_PATH
+
+def load_level_from_path(level_path, placed_sprites, game_state, announce_success=True):
+    if not os.path.exists(level_path):
+        notify(game_state, f"File not found: {os.path.basename(level_path)}", 2, (255, 255, 0))
+        return placed_sprites
+
+    try:
+        with open(level_path, "r", encoding="utf-8") as open_file:
+            loaded_dict = literal_eval(open_file.read())
+    except (OSError, SyntaxError, ValueError) as exc:
+        notify(game_state, f"Load failed: {exc}", 3)
+        return placed_sprites
+
+    remove_all_placed(game_state)
+
+    player_positions = normalize_loaded_entries(loaded_dict.get('player', []))
+    door_positions = normalize_loaded_entries(loaded_dict.get('door', []))
+    if player_positions:
+        game_state.placed_player = PlacedPlayer(player_positions[0], placed_sprites, IMAGES)
+    if door_positions:
+        game_state.placed_door = PlacedDoor(door_positions[0], placed_sprites, IMAGES)
+
+    object_factories = {
+        'wall': PlacedWall,
+        'flyer': PlacedFlyer,
+        'reverse_wall': PlacedReverseWall,
+        'spring': PlacedSpring,
+        'smily_robot': PlacedSmilyRobot,
+        'diamonds': PlacedDiamonds,
+        'sticky_block': PlacedStickyBlock,
+        'fall_spikes': PlacedFallSpikes,
+    }
+
+    for object_name, factory in object_factories.items():
+        for position in normalize_loaded_entries(loaded_dict.get(object_name, [])):
+            factory(position, placed_sprites, IMAGES)
+
+    for position, rotate in normalize_loaded_entries(loaded_dict.get('stand_spikes', []), include_rotation=True):
+        PlacedStandSpikes(position, placed_sprites, IMAGES, rotate)
+
+    if announce_success:
+        notify(game_state, f"Loaded {os.path.basename(level_path)}", 2)
+    return placed_sprites
+
+
+def load_file(placed_sprites, game_state):
+    level_path = choose_load_file_path()
+    if not level_path:
+        notify(game_state, "Load cancelled", 2, (255, 255, 0))
+        return placed_sprites
+    return load_level_from_path(level_path, placed_sprites, game_state)
+
+def save_file(game_state):
+    if not game_state.placed_player or not game_state.placed_door:
+        notify(game_state, "Need player and door before saving", 3, (255, 255, 0))
+        return
+
+    level_path = choose_save_file_path()
+    if not level_path:
+        notify(game_state, "Save cancelled", 2, (255, 255, 0))
+        return
+
+    if not level_path.endswith(".lvl"):
+        level_path = f"{level_path}.lvl"
+
+    try:
+        with open(level_path, "w", encoding="utf-8") as save_file_name:
+            save_file_name.write(str(get_dict_rect_positions(game_state)))
+    except OSError as exc:
+        notify(game_state, f"Save failed: {exc}", 3)
+        return
+
+    notify(game_state, f"Saved {os.path.basename(level_path)}", 2)
             
-    # game_state.play_player.destroy()
-    # game_state.play_door.destroy()
-    # for wall in PlayWall.wall_list:
-    #     wall.destroy()
-    # for reverse_wall in PlayReverseWall.reverse_wall_list:
-    #     reverse_wall.destroy()
-    # for flyer in PlayFlyer.flyer_list:
-    #     flyer.destroy()
-    # for smily_robot in PlaySmilyRobot.smily_robot_list:
-    #     smily_robot.destroy()
-    # for spring in PlaySpring.spring_list:
-    #     spring.destroy()
-    # for diamond in PlayDiamonds.diamonds_list:
-    #     diamond.destroy()
-    # for sticky_block in PlayStickyBlock.sticky_block_list:
-    #     sticky_block.destroy()
-    # for fall_spikes in PlayFallSpikes.fall_spikes_list:
-    #     fall_spikes.destroy()
-    # for stand_spikes in PlayStandSpikes.stand_spikes_list:
-    #     stand_spikes.destroy()
-    # open_file.close()
-    
-    # # Removes all placed lists
-    # remove_all_placed(game_state)
-    
-    # print("Removed all sprites. Now creating lists for loaded level.")
-    
-    # for player_pos in loaded_dict['player']:
-    #     PlacedPlayer(player_pos, PLACED_SPRITES)
-    # for door_pos in loaded_dict['door']:
-    #     PlacedDoor(door_pos, PLACED_SPRITES)
-    # for wall_pos in loaded_dict['wall']:
-    #     PlacedWall(wall_pos, PLACED_SPRITES)
-    # for reverse_wall_pos in loaded_dict['reverse_wall']:
-    #     PlacedReverseWall(reverse_wall_pos, PLACED_SPRITES)
-    # for flyer_pos in loaded_dict['flyer']:
-    #     PlacedFlyer(flyer_pos, PLACED_SPRITES)
-    # for smily_robot_pos in loaded_dict['smily_robot']:
-    #     PlacedSmilyRobot(smily_robot_pos, PLACED_SPRITES)
-    # for spring_pos in loaded_dict['spring']:
-    #     PlacedSpring(spring_pos, PLACED_SPRITES)
-    # for diamond_pos in loaded_dict['diamonds']:
-    #     PlacedDiamonds(diamond_pos, PLACED_SPRITES)
-    # for sticky_block_pos in loaded_dict['sticky_block']:
-    #     PlacedStickyBlock(sticky_block_pos, PLACED_SPRITES)
-    # for fall_spikes_pos in loaded_dict['fall_spikes']:
-    #     PlacedFallSpikes(fall_spikes_pos, PLACED_SPRITES)
-    # for stand_spikes_pos in loaded_dict['stand_spikes']:
-    #     #%% This needs to be changed in the future
-    #     PlacedStandSpikes(stand_spikes_pos, PLACED_SPRITES)
-    
-    # print("File Loaded")
-    # return PLACED_SPRITES
+def draw_grid(screen, grid_spacing, screen_width, screen_height, top_ui_boundary_y_height, horizontal_offset, top_extra_cols=0, top_extra_rows=0, top_extra_cols_left=0):
+    grid_color = (0, 0, 0)
 
-def save_file():
-    pass
-    # try:
-    #     if GameState.placed_player and GameState.placed_door:
-    #         # default extension is optional, here will add .txt if missing
-    #         save_file_prompt = asksaveasfilename(defaultextension=".lvl")
-    #         save_file_name = open(save_file_prompt, "w")
-    #         if save_file_name is not None:
-    #             # Write the file to disk
-    #             obj_locations = copy.deepcopy(get_dict_rect_positions())
-    #             save_file_name.write(str(obj_locations))
-    #             save_file_name.close()
-    #             print("File Saved Successfully.")
-    #     else:
-    #         print("Error! Need player and door to save!")
-    # except IOError:
-    #     print("Save File Error, please restart game and try again.")
-            
-def draw_grid(screen, grid_spacing, screen_width, screen_height, top_ui_boundary_y_height, horizontal_offset):
-    """
-    Draws a grid on the screen with equal horizontal offsets on both sides.
-
-    :param screen: The Pygame screen object where the grid will be drawn.
-    :param grid_spacing: The spacing between each grid line, defining the size of grid cells.
-    :param screen_width: The width of the screen or canvas.
-    :param screen_height: The height of the screen or canvas.
-    :param top_ui_boundary_y_height: The Y-coordinate from where the grid should start, to avoid UI overlap.
-    :param horizontal_offset: The horizontal offset from the sides of the screen.
-    """
-    # Set the color of the grid lines
-    grid_color = (0, 0, 0)  # Black
-
-    # Calculate the drawable area considering offsets and top UI boundary
     drawable_width = screen_width - 2 * horizontal_offset
     drawable_height = screen_height - top_ui_boundary_y_height
 
-    # Calculate the number of complete vertical and horizontal cells that fit within the drawable area
     num_complete_vertical_cells = drawable_width // grid_spacing
     num_complete_horizontal_cells = drawable_height // grid_spacing
 
-    # Calculate the adjusted width and height to only include complete cells
     adjusted_width = num_complete_vertical_cells * grid_spacing
     adjusted_height = num_complete_horizontal_cells * grid_spacing
 
-    # Draw vertical lines
-    for i in range(num_complete_vertical_cells + 1):  # +1 to draw the last line on the right
+    top_section_height = top_extra_rows * grid_spacing
+    extended_width_right = adjusted_width + top_extra_cols * grid_spacing
+    left_extension = top_extra_cols_left * grid_spacing
+
+    # Draw vertical lines (standard columns — full height)
+    for i in range(num_complete_vertical_cells + 1):
         x_position = i * grid_spacing + horizontal_offset
         pygame.draw.line(screen, grid_color, (x_position, top_ui_boundary_y_height), (x_position, top_ui_boundary_y_height + adjusted_height))
 
-    # Draw horizontal lines
-    for j in range(num_complete_horizontal_cells + 1):  # +1 to draw the last line at the bottom
-        y_position = j * grid_spacing + top_ui_boundary_y_height
-        pygame.draw.line(screen, grid_color, (horizontal_offset, y_position), (horizontal_offset + adjusted_width, y_position))
+    # Draw extra vertical lines for the top section right extension
+    for i in range(1, top_extra_cols + 1):
+        x_position = (num_complete_vertical_cells + i) * grid_spacing + horizontal_offset
+        pygame.draw.line(screen, grid_color, (x_position, top_ui_boundary_y_height), (x_position, top_ui_boundary_y_height + top_section_height))
 
+    # Draw extra vertical lines for the top section left extension
+    for i in range(1, top_extra_cols_left + 1):
+        x_position = horizontal_offset - i * grid_spacing
+        pygame.draw.line(screen, grid_color, (x_position, top_ui_boundary_y_height), (x_position, top_ui_boundary_y_height + top_section_height))
+
+    # Draw horizontal lines
+    for j in range(num_complete_horizontal_cells + 1):
+        y_position = j * grid_spacing + top_ui_boundary_y_height
+        if j <= top_extra_rows:
+            left_x = horizontal_offset - left_extension
+            right_x = horizontal_offset + extended_width_right
+        else:
+            left_x = horizontal_offset
+            right_x = horizontal_offset + adjusted_width
+        pygame.draw.line(screen, grid_color, (left_x, y_position), (right_x, y_position))
+
+
+
+class BoundaryWall(pygame.sprite.Sprite):
+    """Invisible wall sprite for building collision (top surface + inner sides)."""
+    boundary_list = []
+
+    def __init__(self, x, y, play_sprites):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((GRID_SPACING, GRID_SPACING), pygame.SRCALPHA)
+        self.image.fill((0, 0, 0, 0))  # Transparent
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        play_sprites.add(self)
+        PlayWall.wall_list.append(self)
+        BoundaryWall.boundary_list.append(self)
+
+    def kill(self):
+        if self in BoundaryWall.boundary_list:
+            BoundaryWall.boundary_list.remove(self)
+        super().kill()
+
+    def restart(self):
+        pass
 
 
 class ArrowButton(pygame.sprite.Sprite):
@@ -325,7 +733,7 @@ class JumpButton(pygame.sprite.Sprite):
         self.image_active = images["spr_jump_button_active"]
         self.image = self.image_inactive
         self.rect = self.image.get_rect()
-        self.rect.topleft = (SCREEN_WIDTH-230, SCREEN_HEIGHT-235)
+        self.rect.topleft = (SCREEN_WIDTH-230, SCREEN_HEIGHT-223)
         play_sprites.add(self)
     
     def set_active(self, active):
@@ -418,7 +826,7 @@ class MusicPlayer():
 class Grid(pygame.sprite.Sprite):
     grid_list = []
     ALL_GRIDS_ENABLED = True
-    GRID_SPACING = 23
+    GRID_SPACING = GRID_SPACING
     def __init__(self, GRID_SPRITES, images):
         pygame.sprite.Sprite.__init__(self)
         self.image = images["spr_grid"]
@@ -502,17 +910,19 @@ class GameState:
                 'spring': (205, 12), 'flyer': (525, 12), 'smily_robot': (465, 12),
                 'door': (75, 2), 'diamonds': (140, 14), 'sticky_block': (337, 12),
                 'fall_spikes': (590, 12), 'stand_spikes': (650, 12)}
+    WYATT_LABS_UI_BASE = (-SCREEN_WIDTH * 3 // 100 + 72, SCREEN_HEIGHT - 235)
     UI_ELEMENTS_POSITIONS = {'play_edit_switch_button': (SCREEN_WIDTH-80, 8),
-                             'eraser_button': (SCREEN_WIDTH-250, 7),
-                             'clear_button': (SCREEN_WIDTH-250, 300),
-                             'info_button': (SCREEN_WIDTH-250, 100),
-                             'grid_button': (SCREEN_WIDTH-250, 200),
+                             'eraser_button': (SCREEN_WIDTH-244, 10),
+                             'grid_button': (SCREEN_WIDTH-80, SCREEN_HEIGHT-240),
+                             'info_button': (SCREEN_WIDTH-80, SCREEN_HEIGHT-160),
+                             'clear_button': (SCREEN_WIDTH-80, SCREEN_HEIGHT-80),
                              'restart_button': (SCREEN_WIDTH-175, 10),
-                             'save_file_button': (SCREEN_WIDTH-425, 10),
-                             'load_file_button': (SCREEN_WIDTH-390, 10),
+                             'save_file_button': (16, SCREEN_HEIGHT - 240),
+                             'load_file_button': (16, SCREEN_HEIGHT - 160),
+                             'main_menu_button': (16, SCREEN_HEIGHT - 80),
                              'rotate_button': (700, 7)}
-    TOP_UI_BOUNDARY_Y_HEIGHT = 90
-    HORIZONTAL_GRID_OFFSET = 250
+    TOP_UI_BOUNDARY_Y_HEIGHT = TOP_UI_BOUNDARY_Y_HEIGHT
+    HORIZONTAL_GRID_OFFSET = HORIZONTAL_GRID_OFFSET
     BOTTOM_Y_GRID_OFFSET = 5
     DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
     
@@ -555,12 +965,80 @@ class GameState:
         self.jumping = False
         
         self.selected_object_type = None
-        
+
         self.notification_manager = NotificationManager()
+
+        self.play_timer_start = None
+        self.play_elapsed_ms = 0
+        self.current_builtin_level_index = None
+        self.pending_app_screen = None
 
 
     def update_mouse_pos(self):
         self.mouse_pos = pygame.mouse.get_pos()
+
+    def request_app_screen(self, app_screen):
+        self.pending_app_screen = app_screen
+
+    def consume_pending_app_screen(self):
+        pending = self.pending_app_screen
+        self.pending_app_screen = None
+        return pending
+
+    def reset_to_blank_editor(self):
+        if self.game_mode == self.PLAY_MODE and self.play_player:
+            self.switch_to_edit_mode()
+        self.current_builtin_level_index = None
+        self.dragging.dragging_all_false()
+        self.is_an_object_currently_being_dragged = False
+        self.selected_object_type = None
+        GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
+        remove_all_placed(self)
+        self.start.dynamic_object_placeholder.reset()
+        self.start = restart_start_objects(self.start, self.START_POSITIONS)
+
+    def start_builtin_level(self, level_index):
+        if level_index < 0 or level_index >= len(BUILTIN_LEVELS):
+            return False
+        if self.game_mode == self.PLAY_MODE and self.play_player:
+            self.switch_to_edit_mode()
+        level_name, level_filename = BUILTIN_LEVELS[level_index]
+        level_path = os.path.join(LEVELS_DIR, level_filename)
+        self.current_builtin_level_index = level_index
+        load_level_from_path(level_path, self.placed_sprites, self, announce_success=False)
+        if not self.placed_player:
+            notify(self, f"Level failed to load: {level_name}", 3, (255, 255, 0))
+            return False
+        self.switch_to_play_mode()
+        notify(self, f"Level {level_index + 1}: {level_name}", 2, (255, 255, 255))
+        return True
+
+    def is_point_in_edit_ui(self, pos):
+        edit_ui_buttons = [
+            self.play_edit_switch_button,
+            self.eraser_button,
+            self.grid_button,
+            self.info_button,
+            self.clear_button,
+            self.rotate_button,
+            self.main_menu_button,
+        ]
+        if save_load_enabled():
+            edit_ui_buttons.extend([self.save_file_button, self.load_file_button])
+        return any(button.rect.collidepoint(pos) for button in edit_ui_buttons)
+
+    def get_grid_horizontal_bounds(self, y_pos):
+        in_top_rows = y_pos < GameState.TOP_UI_BOUNDARY_Y_HEIGHT + 11 * Grid.GRID_SPACING
+        left_bound = GameState.HORIZONTAL_GRID_OFFSET - 10 * Grid.GRID_SPACING if in_top_rows else GameState.HORIZONTAL_GRID_OFFSET
+        # Match the effective width used by draw_grid(..., SCREEN_WIDTH + Grid.GRID_SPACING, ...)
+        drawable_width = (SCREEN_WIDTH + Grid.GRID_SPACING) - 2 * GameState.HORIZONTAL_GRID_OFFSET
+        num_complete_vertical_cells = drawable_width // Grid.GRID_SPACING
+        base_right = GameState.HORIZONTAL_GRID_OFFSET + num_complete_vertical_cells * Grid.GRID_SPACING - 1
+        if in_top_rows:
+            right_bound = base_right + 10 * Grid.GRID_SPACING
+        else:
+            right_bound = base_right
+        return left_bound, right_bound
         
     def is_object_at_position(self, position):
         for sprite in self.placed_sprites:
@@ -580,11 +1058,16 @@ class GameState:
         self.grid_button = GridButton(self.UI_ELEMENTS_POSITIONS['grid_button'], IMAGES)
         self.start_sprites.add(self.grid_button)
         self.restart_button = RestartButton(self.UI_ELEMENTS_POSITIONS['restart_button'], self.play_sprites, IMAGES)
-        if not MOBILE_ACCESSIBILITY_MODE:
+        if save_load_enabled():
             self.save_file_button = SaveFileButton(self.UI_ELEMENTS_POSITIONS['save_file_button'], IMAGES)
             self.start_sprites.add(self.save_file_button)
             self.load_file_button = LoadFileButton(self.UI_ELEMENTS_POSITIONS['load_file_button'], IMAGES)
             self.start_sprites.add(self.load_file_button)
+        else:
+            self.save_file_button = None
+            self.load_file_button = None
+        self.main_menu_button = MainMenuButton(self.UI_ELEMENTS_POSITIONS['main_menu_button'])
+        self.start_sprites.add(self.main_menu_button)
         self.rotate_button = RotateButton(self.UI_ELEMENTS_POSITIONS['rotate_button'], IMAGES)
         self.start_sprites.add(self.rotate_button)
             
@@ -650,7 +1133,7 @@ class GameState:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if self.info_button.rect.collidepoint(event.pos):
+                if self.game_mode == GameState.EDIT_MODE and self.info_button.rect.collidepoint(event.pos):
                     # Toggle info screen on/off
                     menu_on = 2 if menu_on == 1 else 1  # Toggle between game and info screen
                 else:
@@ -692,33 +1175,36 @@ class GameState:
             #################
             # LEFT CLICK (PRESSED DOWN) on right side (menu buttons)
             #################
-            if(event.type == MOUSEBUTTONDOWN 
-               and pygame.mouse.get_pressed()[0] 
-               and self.mouse_pos[0] > SCREEN_WIDTH-GameState.HORIZONTAL_GRID_OFFSET): 
+            if(event.type == MOUSEBUTTONDOWN
+               and event.button == 1
+               and self.game_mode == GameState.EDIT_MODE):
                     # BUTTONS
-                    if self.grid_button.rect.collidepoint(self.mouse_pos):
+                    if self.grid_button.rect.collidepoint(event.pos):
                         if Grid.ALL_GRIDS_ENABLED:
                             Grid.ALL_GRIDS_ENABLED = False
                         else:
                             Grid.ALL_GRIDS_ENABLED = True
-                    if self.eraser_button.rect.collidepoint(self.mouse_pos):
+                    if self.eraser_button.rect.collidepoint(event.pos):
                         self.dragging.dragging_all_false()
                         self.is_an_object_currently_being_dragged = False
                         self.selected_object_type = None
                         self.toggle_eraser_mode()
                         GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS = None
-                    if not MOBILE_ACCESSIBILITY_MODE:
-                        if self.save_file_button.rect.collidepoint(self.mouse_pos):
-                            save_file()
-                        if self.load_file_button.rect.collidepoint(self.mouse_pos):
-                            self.placed_sprites = load_file(self.placed_sprites, self)
+                    if self.save_file_button and self.save_file_button.rect.collidepoint(event.pos):
+                        save_file(self)
+                    if self.load_file_button and self.load_file_button.rect.collidepoint(event.pos):
+                        self.placed_sprites = load_file(self.placed_sprites, self)
+                    if self.main_menu_button.rect.collidepoint(event.pos):
+                        self.reset_to_blank_editor()
+                        return APP_SCREEN_MAIN_MENU
             #################
             # LEFT CLICK (PRESSED DOWN) at Top of Screen (start objects and left of clear button)
             #################
-            if(event.type == MOUSEBUTTONDOWN 
-               and pygame.mouse.get_pressed()[0] 
+            if(event.type == MOUSEBUTTONDOWN
+               and pygame.mouse.get_pressed()[0]
                and self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT
-               and self.mouse_pos[0] < GameState.UI_ELEMENTS_POSITIONS['clear_button'][0]): 
+               and self.mouse_pos[0] < GameState.UI_ELEMENTS_POSITIONS['clear_button'][0]
+               and not self.is_point_in_edit_ui(self.mouse_pos)):
                 if self.game_mode == GameState.EDIT_MODE:
                     # Click on Start object at top (which will then drag to mouse cursor)
                     # Restarts all drag objects
@@ -758,13 +1244,16 @@ class GameState:
             # LEFT CLICK (PRESSED DOWN)
             #################
             elif(event.type == MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0] and \
-            self.mouse_pos[0] >= GameState.HORIZONTAL_GRID_OFFSET and \
-            self.mouse_pos[0] <= SCREEN_WIDTH-(GameState.HORIZONTAL_GRID_OFFSET+(Grid.GRID_SPACING/2)) and \
-            self.mouse_pos[1] <= SCREEN_HEIGHT-GameState.BOTTOM_Y_GRID_OFFSET):
+            self.mouse_pos[1] <= SCREEN_HEIGHT-GameState.BOTTOM_Y_GRID_OFFSET and \
+            not self.is_point_in_edit_ui(self.mouse_pos)):
+                left_bound, right_bound = self.get_grid_horizontal_bounds(self.mouse_pos[1])
+                if not (left_bound <= self.mouse_pos[0] <= right_bound):
+                    continue
                 if not self.eraser_mode_active:
                     # Place object on location of mouse release
                     if self.selected_object_type:
-                        grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
+                        _snap_left = GameState.HORIZONTAL_GRID_OFFSET - 10 * Grid.GRID_SPACING if self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT + 11 * Grid.GRID_SPACING else GameState.HORIZONTAL_GRID_OFFSET
+                        grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, _snap_left)
                         # Delete object that's already at the grid
                         remove_placed_object(self.placed_sprites, self.mouse_pos, self)
                         # Example for placing a player, replicate for other types
@@ -831,11 +1320,14 @@ class GameState:
             elif (event.type == pygame.MOUSEMOTION and not self.eraser_mode_active):
 
                 self.update_mouse_pos()
+                in_top_rows = self.mouse_pos[1] < GameState.TOP_UI_BOUNDARY_Y_HEIGHT + 11 * Grid.GRID_SPACING
+                left_bound, right_bound = self.get_grid_horizontal_bounds(self.mouse_pos[1])
                 if(self.is_dragging and self.game_mode == GameState.EDIT_MODE and self.mouse_pos[1] > GameState.TOP_UI_BOUNDARY_Y_HEIGHT \
-                   and self.mouse_pos[0] >= GameState.HORIZONTAL_GRID_OFFSET and \
-                   self.mouse_pos[0] <= SCREEN_WIDTH-(GameState.HORIZONTAL_GRID_OFFSET+(Grid.GRID_SPACING/2)) and \
-                   self.mouse_pos[1] <= SCREEN_HEIGHT-GameState.BOTTOM_Y_GRID_OFFSET):
-                    new_grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
+                   and left_bound <= self.mouse_pos[0] <= right_bound and \
+                   self.mouse_pos[1] <= SCREEN_HEIGHT-GameState.BOTTOM_Y_GRID_OFFSET and \
+                   not self.is_point_in_edit_ui(self.mouse_pos)):
+                    _snap_left = GameState.HORIZONTAL_GRID_OFFSET - 10 * Grid.GRID_SPACING if in_top_rows else GameState.HORIZONTAL_GRID_OFFSET
+                    new_grid_pos = snap_to_grid(self.mouse_pos, SCREEN_WIDTH, SCREEN_HEIGHT, Grid.GRID_SPACING, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, _snap_left)
     
                     if new_grid_pos != self.last_placed_pos:
                         interpolated_positions = self.interpolate_positions(self.last_placed_pos or new_grid_pos, new_grid_pos, Grid.GRID_SPACING)
@@ -857,6 +1349,7 @@ class GameState:
                 elif(self.play_edit_switch_button.rect.collidepoint(self.mouse_pos) and self.game_mode == self.PLAY_MODE):
                     # Makes sure you are not in editing mode to enter editing mode
                     self.switch_to_edit_mode()
+                    self.current_builtin_level_index = None
                 if self.restart_button.rect.collidepoint(self.mouse_pos):
                     if self.game_mode == self.PLAY_MODE:
                         restart_level(self)
@@ -947,6 +1440,8 @@ class GameState:
         print("Editing Mode Activated")
         self.game_mode = self.EDIT_MODE
         self.play_player.death_count = 0
+        self.play_timer_start = None
+        self.play_elapsed_ms = 0
         self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
         remove_all_play(self)
         self.play_sprites.empty()
@@ -965,6 +1460,8 @@ class GameState:
             # Makes clicking play again unclickable
             self.game_mode = self.PLAY_MODE
             self.play_edit_switch_button.image = self.play_edit_switch_button.game_mode_button(self.game_mode)
+            self.play_timer_start = pygame.time.get_ticks()
+            self.play_elapsed_ms = 0
             font = pygame.font.SysFont('Arial', 14)
             self.notification_manager.add_message("Play Mode Activated", 1, (SCREEN_WIDTH-80, 100), font, (0, 255, 0))
             print("Play Mode Activated")
@@ -992,6 +1489,40 @@ class GameState:
             for placed_stand_spikes in PlacedStandSpikes.stand_spikes_list:
                 PlayStandSpikes(placed_stand_spikes.rect.topleft, self.play_sprites, IMAGES, placed_stand_spikes.rotate)
             
+            # Building boundaries — align to the visible rooftop/park surfaces
+            # Created before UI buttons so buttons render on top
+            gs = Grid.GRID_SPACING
+            # --- Wyatt Labs Fitness (bottom-left): rooftop court surface ---
+            wl_surf, wl_pos = self.building_surfaces[0]
+            wl_roof_y = wl_pos[1] + int(wl_surf.get_height() * 0.31)
+            wl_top_y = ((wl_roof_y - GameState.TOP_UI_BOUNDARY_Y_HEIGHT) // gs) * gs + GameState.TOP_UI_BOUNDARY_Y_HEIGHT
+            wl_wall_x = wl_pos[0] + int(wl_surf.get_width() * 0.86)
+            wl_right_x = ((wl_wall_x - GameState.HORIZONTAL_GRID_OFFSET) // gs) * gs + GameState.HORIZONTAL_GRID_OFFSET
+            wl_roof_end_x = wl_right_x + gs
+            wl_left_start = -gs
+            x = wl_left_start
+            while x <= wl_roof_end_x:
+                BoundaryWall(x, wl_top_y, self.play_sprites)
+                x += gs
+            y = wl_top_y + gs
+            while y < SCREEN_HEIGHT:
+                BoundaryWall(wl_right_x, y, self.play_sprites)
+                y += gs
+            # --- Salesfarce Park (bottom-right): rooftop park surface ---
+            sf_surf, sf_pos = self.building_surfaces[1]
+            sf_roof_y = sf_pos[1] + int(sf_surf.get_height() * 0.50)
+            sf_top_y = ((sf_roof_y - GameState.TOP_UI_BOUNDARY_Y_HEIGHT) // gs) * gs + GameState.TOP_UI_BOUNDARY_Y_HEIGHT
+            sf_wall_x = sf_pos[0] + int(sf_surf.get_width() * 0.10)
+            sf_left_x = ((sf_wall_x - GameState.HORIZONTAL_GRID_OFFSET) // gs) * gs + GameState.HORIZONTAL_GRID_OFFSET
+            x = sf_left_x
+            while x < SCREEN_WIDTH:
+                BoundaryWall(x, sf_top_y, self.play_sprites)
+                x += gs
+            y = sf_top_y + gs
+            while y < SCREEN_HEIGHT:
+                BoundaryWall(sf_left_x, y, self.play_sprites)
+                y += gs
+
             self.left_arrow_button = ArrowButton(self.play_sprites, IMAGES, "left")
             self.right_arrow_button = ArrowButton(self.play_sprites, IMAGES, "right")
             self.jump_button = JumpButton(self.play_sprites, IMAGES)
@@ -1123,12 +1654,23 @@ class GameState:
                 if self.play_player.score == len(PlayDiamonds.diamonds_list):
                     font = pygame.font.SysFont('Arial', 96)
                     self.notification_manager.add_message("You Win!", 3, (SCREEN_WIDTH//2, SCREEN_HEIGHT//2), font)
+                    final_ms = pygame.time.get_ticks() - self.play_timer_start if self.play_timer_start is not None else self.play_elapsed_ms
+                    final_s = final_ms // 1000
+                    final_cs = (final_ms % 1000) // 10
+                    time_font = pygame.font.SysFont('Arial', 48)
+                    self.notification_manager.add_message("Time: {:d}.{:02d}s".format(final_s, final_cs), 3, (SCREEN_WIDTH//2, SCREEN_HEIGHT//2 + 90), time_font)
                     print("You Win!")
                     self.notification_manager.draw_messages(self.screen)
                     pygame.display.update()
                     await asyncio.sleep(3)
-                    #time.sleep(3)
-                    self.switch_to_edit_mode()
+                    next_level_index = None if self.current_builtin_level_index is None else self.current_builtin_level_index + 1
+                    if next_level_index is not None and next_level_index < len(BUILTIN_LEVELS):
+                        self.start_builtin_level(next_level_index)
+                    else:
+                        self.switch_to_edit_mode()
+                        if self.current_builtin_level_index is not None:
+                            notify(self, "Campaign complete!", 3, (255, 244, 160))
+                            self.request_app_screen(APP_SCREEN_LEVEL_SELECT)
                     #music_player = [MusicPlayer()]
                     
 
@@ -1235,6 +1777,7 @@ class GameState:
 def get_dict_rect_positions(game_state):
     # Handle player separately
     player_position = []
+    door_position = []
     if game_state.placed_player is not None:
         player_position = [game_state.placed_player.rect.topleft]
     if game_state.placed_door is not None:
@@ -1259,7 +1802,10 @@ def get_dict_rect_positions(game_state):
 
     # Loop through all lists of placed objects (except player and door)
     for item_key, item_list in total_placed_list.items():
-        item_list_in_name = [item.rect.topleft for item in item_list]
+        if item_key == 'stand_spikes':
+            item_list_in_name = [{'pos': item.rect.topleft, 'rotate': item.rotate} for item in item_list]
+        else:
+            item_list_in_name = [item.rect.topleft for item in item_list]
         get_rect_for_all_obj[item_key] = item_list_in_name
 
     return get_rect_for_all_obj
@@ -1269,7 +1815,7 @@ def remove_all_placed(game_state):
                      PlacedReverseWall.reverse_wall_list, PlacedSpring.spring_list, PlacedSmilyRobot.smily_robot_list,
                      PlacedDiamonds.diamonds_list, PlacedStickyBlock.sticky_block_list,
                      PlacedFallSpikes.fall_spikes_list, PlacedStandSpikes.stand_spikes_list]:
-        for obj in spr_list:
+        for obj in list(spr_list):
             obj.kill()
     if game_state.placed_player:
         game_state.placed_player.kill()
@@ -1326,16 +1872,25 @@ async def main():
     #     ROOT = tk.Tk()
     #     ROOT.withdraw()
         
-    MENU_ON = 1
+    app_screen = APP_SCREEN_MAIN_MENU
+    info_return_screen = APP_SCREEN_GAME
 
     load_all_assets()
     
 
     
     game_state = GameState()
+    if ITCH_MODE:
+        notify(game_state, "Itch mode: save/load buttons disabled", 3, (255, 255, 0))
     
     #Fonts
     FONT_ARIAL = pygame.font.SysFont('Arial', 24)
+    menu_fonts = {
+        "title": pygame.font.SysFont('Arial', 44, bold=True),
+        "subtitle": pygame.font.SysFont('Arial', 24),
+        "button": pygame.font.SysFont('Arial', 30, bold=True),
+        "small": pygame.font.SysFont('Arial', 22),
+    }
 
     
     #Backgrounds
@@ -1346,20 +1901,76 @@ async def main():
     
     METROPOLIS_BACKGROUND = pygame.image.load("sprites/metropolis_background.png").convert()
     METROPOLIS_BACKGROUND = pygame.transform.scale(METROPOLIS_BACKGROUND, (SCREEN_WIDTH, SCREEN_HEIGHT))
+    SALESFARCE_PARK = pygame.image.load("sprites/salesfarce_park.png").convert_alpha()
+    SALESFARCE_PARK = pygame.transform.smoothscale(SALESFARCE_PARK, (287, 540))
+    SALESFARCE_PARK_POS = (SCREEN_WIDTH - SALESFARCE_PARK.get_width() + SCREEN_WIDTH * 2 // 100, SCREEN_HEIGHT - SALESFARCE_PARK.get_height() + SCREEN_HEIGHT * 8 // 100 - 15)
+    WYATT_LABS_FITNESS = pygame.image.load("sprites/wyatt_labs_fitness.png").convert_alpha()
+    WYATT_LABS_FITNESS = pygame.transform.smoothscale(WYATT_LABS_FITNESS, (311, 390))
+    WYATT_LABS_FITNESS_POS = (-SCREEN_WIDTH * 3 // 100, SCREEN_HEIGHT - WYATT_LABS_FITNESS.get_height())
+    game_state.building_surfaces = [
+        (WYATT_LABS_FITNESS, WYATT_LABS_FITNESS_POS),
+        (SALESFARCE_PARK, SALESFARCE_PARK_POS),
+    ]
+    main_menu_buttons = [
+        MenuButton((140, 240, 322, 76), "Play Levels", bg_color=(244, 201, 82), border_color=(170, 113, 8)),
+        MenuButton((140, 336, 322, 76), "Level Editor", bg_color=(111, 206, 255), border_color=(36, 106, 157)),
+        MenuButton((140, 432, 322, 76), "Instructions", bg_color=(168, 244, 194), border_color=(62, 139, 90)),
+    ]
+    level_select_buttons = [
+        MenuButton((142, 222, 320, 76), "1. Tutorial", bg_color=(244, 201, 82), border_color=(170, 113, 8)),
+        MenuButton((562, 222, 320, 76), "2. Skyline Sprint", bg_color=(111, 206, 255), border_color=(36, 106, 157)),
+        MenuButton((142, 332, 320, 76), "3. Sticky Floor", bg_color=(168, 244, 194), border_color=(62, 139, 90)),
+        MenuButton((562, 332, 320, 76), "4. Gauntlet", bg_color=(249, 148, 107), border_color=(155, 68, 39)),
+        MenuButton((352, 452, 320, 62), "Back", bg_color=(225, 228, 235), border_color=(118, 124, 142)),
+    ]
     #MUSIC_PLAYER = [MusicPlayer()]
         
     while True:
         clock.tick(FPS)
         game_state.update_mouse_pos()
         
-        if MENU_ON == 1:  # Normal game state
+        if app_screen == APP_SCREEN_MAIN_MENU:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if main_menu_buttons[0].rect.collidepoint(event.pos):
+                        app_screen = APP_SCREEN_LEVEL_SELECT
+                    elif main_menu_buttons[1].rect.collidepoint(event.pos):
+                        game_state.reset_to_blank_editor()
+                        app_screen = APP_SCREEN_GAME
+                    elif main_menu_buttons[2].rect.collidepoint(event.pos):
+                        info_return_screen = APP_SCREEN_MAIN_MENU
+                        app_screen = APP_SCREEN_INFO
+            draw_main_menu(SCREEN, START_MENU, menu_fonts, main_menu_buttons, game_state.mouse_pos)
+            pygame.display.update()
+        elif app_screen == APP_SCREEN_LEVEL_SELECT:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    for index, button in enumerate(level_select_buttons[:4]):
+                        if button.rect.collidepoint(event.pos):
+                            if game_state.start_builtin_level(index):
+                                app_screen = APP_SCREEN_GAME
+                            break
+                    else:
+                        if level_select_buttons[4].rect.collidepoint(event.pos):
+                            app_screen = APP_SCREEN_MAIN_MENU
+            draw_level_select(SCREEN, START_MENU, menu_fonts, level_select_buttons, game_state.mouse_pos)
+            pygame.display.update()
+        elif app_screen == APP_SCREEN_GAME:  # Normal game state
         
             game_state.initiate_room()
-            MENU_ON = game_state.handle_events(MENU_ON)
+            app_screen = game_state.handle_events(app_screen)
+            if app_screen == APP_SCREEN_INFO:
+                info_return_screen = APP_SCREEN_GAME
             
             if not game_state.is_paused:
                 # Only update game logic if the game is not paused
-                game_state.handle_events(MENU_ON)
+                game_state.handle_events(app_screen)
                 if game_state.game_mode == GameState.EDIT_MODE:
                     game_state.edit_mode_function()
                     game_state.start_sprites.update()
@@ -1372,40 +1983,55 @@ async def main():
                 pass
             
             SCREEN.blit(METROPOLIS_BACKGROUND, (0, 0))
-            
-    
+            SCREEN.blit(WYATT_LABS_FITNESS, WYATT_LABS_FITNESS_POS)
+            SCREEN.blit(SALESFARCE_PARK, SALESFARCE_PARK_POS)
+
             game_state.game_mode_sprites.draw(SCREEN)
             if game_state.game_mode == game_state.EDIT_MODE: #Only draw placed sprites in editing mode
                 if game_state.grid_button.grid_on_var:
                     game_state.grid_sprites.draw(SCREEN)
-                
+
                 game_state.placed_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("", 1, (0, 0, 0))
                 if Grid.ALL_GRIDS_ENABLED:
-                    draw_grid(SCREEN, Grid.GRID_SPACING, SCREEN_WIDTH, SCREEN_HEIGHT, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET)
+                    draw_grid(SCREEN, Grid.GRID_SPACING, SCREEN_WIDTH + Grid.GRID_SPACING, SCREEN_HEIGHT, GameState.TOP_UI_BOUNDARY_Y_HEIGHT, GameState.HORIZONTAL_GRID_OFFSET, top_extra_cols=10, top_extra_rows=11, top_extra_cols_left=10)
+                    draw_building_facades(SCREEN, game_state.building_surfaces)
                 game_state.start_sprites.draw(SCREEN)
                 # Draw yellow outline around start object being dragged
                 if game_state.selected_object_type is not None:
                     sprite_name, pos = GameState.DYNAMIC_OBJECT_PLACEHOLDER_YELLOW_OUTLINE_OBJ_AND_POS
                     draw_yellow_outline(SCREEN, IMAGES[sprite_name], pos, thickness=1)
 
-    
             elif game_state.game_mode == game_state.PLAY_MODE: #Only draw play sprites in play mode
                 if game_state.eraser_mode_active:
                     game_state.toggle_eraser_mode()
                 game_state.play_sprites.draw(SCREEN)
                 DEATH_COUNT_TEXT = FONT_ARIAL.render("Deaths: " + str(game_state.play_player.death_count), 1, (0, 0, 0))
+                if game_state.play_timer_start is not None:
+                    game_state.play_elapsed_ms = pygame.time.get_ticks() - game_state.play_timer_start
+                elapsed_s = game_state.play_elapsed_ms // 1000
+                elapsed_ms = (game_state.play_elapsed_ms % 1000) // 10
+                TIMER_TEXT = FONT_ARIAL.render("Time: {:d}.{:02d}s".format(elapsed_s, elapsed_ms), 1, (0, 0, 0))
+                SCREEN.blit(TIMER_TEXT, ((SCREEN_WIDTH / 2 + 70), 5))
             game_state.notification_manager.draw_messages(game_state.screen)
-            SCREEN.blit(DEATH_COUNT_TEXT, ((SCREEN_WIDTH/2-50), 5))
-    
+            SCREEN.blit(DEATH_COUNT_TEXT, ((SCREEN_WIDTH/2-150), 5))
+
             pygame.display.update()
-        elif MENU_ON == 2:
+            pending_app_screen = game_state.consume_pending_app_screen()
+            if pending_app_screen is not None:
+                app_screen = pending_app_screen
+        elif app_screen == APP_SCREEN_INFO:
             InfoScreen(INFO_SCREEN, SCREEN)  # Display the Info Screen
             for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    app_screen = info_return_screen
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # Click anywhere to return to the game
-                    MENU_ON = 1
-            
+                    app_screen = info_return_screen
+
             pygame.display.update()
         await asyncio.sleep(0)
         

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leveleditor"
+version = "0.1.0"
+description = "Propeller Platformer level editor packaged for the web with pygbag."
+readme = {text = "Propeller Platformer level editor packaged for the web with pygbag.", content-type = "text/plain"}
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "pygame-ce>=2.5,<3",
+  "pygbag==0.9.3",
+]
+
+[tool.setuptools]
+py-modules = ["main", "base_objects", "placed_objects", "play_objects", "start_objects", "ui", "utils"]

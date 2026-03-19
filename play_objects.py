@@ -33,14 +33,14 @@ class PlayReverseWall(PlayObject):
 class PlayFlyer(PlayObject):
     flyer_list = []
     SPEED = 1
-    WALL_BOUNDARY_THRESHOLD = 5 # Pixel overlap with wall
+    WALL_BOUNDARY_THRESHOLD = 5
     def __init__(self, pos, play_sprites, images):
         super().__init__(pos, play_sprites, images["spr_flyer"])
         self.images = images
         self.left_speed = PlayFlyer.SPEED*-1
         self.right_speed = PlayFlyer.SPEED
         self.right_or_left = random.choice([self.left_speed, self.right_speed])
-        
+
     def update(self):
         self.rect.topleft = (self.rect.topleft[0]+self.right_or_left, self.rect.topleft[1])
         for wall in PlayWall.wall_list:
@@ -318,6 +318,11 @@ class PlayPlayer(PlayObject):
                 self.rect.right = stickyblock.rect.left
             elif self.speed_x < 0: #player moves left and collides into wall
                 self.rect.left = stickyblock.rect.right
+        # Clamp player to screen horizontal bounds
+        if self.rect.left < 0:
+            self.rect.left = 0
+        if self.rect.right > SCREEN_WIDTH:
+            self.rect.right = SCREEN_WIDTH
         self.rect.y += self.speed_y
         # Check and see if we hit anything
         self.wall_hit_list = pygame.sprite.spritecollide(self, PlayWall.wall_list, False)
